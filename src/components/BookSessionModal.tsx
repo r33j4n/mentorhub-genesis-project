@@ -18,14 +18,22 @@ interface BookSessionModalProps {
   onClose: () => void;
 }
 
+type SessionType = 'one_on_one' | 'consultation' | 'group' | 'workshop';
+
 export const BookSessionModal = ({ mentorId, isOpen, onClose }: BookSessionModalProps) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [sessionData, setSessionData] = useState({
+  const [sessionData, setSessionData] = useState<{
+    title: string;
+    description: string;
+    sessionType: SessionType;
+    durationMinutes: string;
+    scheduledTime: string;
+  }>({
     title: '',
     description: '',
-    sessionType: 'one_on_one' as const,
+    sessionType: 'one_on_one',
     durationMinutes: '60',
     scheduledTime: ''
   });
@@ -140,7 +148,7 @@ export const BookSessionModal = ({ mentorId, isOpen, onClose }: BookSessionModal
                 <Label htmlFor="sessionType">Session Type</Label>
                 <Select 
                   value={sessionData.sessionType} 
-                  onValueChange={(value: 'one_on_one' | 'consultation' | 'group' | 'workshop') => setSessionData(prev => ({ ...prev, sessionType: value }))}
+                  onValueChange={(value: SessionType) => setSessionData(prev => ({ ...prev, sessionType: value }))}
                 >
                   <SelectTrigger>
                     <SelectValue />

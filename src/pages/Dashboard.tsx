@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -51,7 +50,7 @@ export default function Dashboard() {
       if (profileError) throw profileError;
       setUserProfile(profile);
 
-      // Load user roles - filter to only include valid roles
+      // Load user roles - filter to only include valid roles and map to UserRole type
       const { data: roles, error: rolesError } = await supabase
         .from('user_roles')
         .select('role_type')
@@ -59,7 +58,13 @@ export default function Dashboard() {
         .in('role_type', ['mentor', 'mentee', 'admin']);
 
       if (rolesError) throw rolesError;
-      setUserRoles(roles || []);
+      
+      // Filter and map to ensure only valid role types
+      const validRoles: UserRole[] = (roles || [])
+        .filter(role => ['mentor', 'mentee', 'admin'].includes(role.role_type))
+        .map(role => ({ role_type: role.role_type as 'mentor' | 'mentee' | 'admin' }));
+      
+      setUserRoles(validRoles);
 
       // Load sessions
       const { data: sessionsData, error: sessionsError } = await supabase
