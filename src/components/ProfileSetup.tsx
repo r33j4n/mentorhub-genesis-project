@@ -186,10 +186,10 @@ export const ProfileSetup = () => {
           .from('mentees')
           .insert({
             mentee_id: user.id,
-            career_stage: menteeData.careerStage || null,
+            career_stage: menteeData.careerStage as any || null,
             goals: menteeData.goals || null,
             budget_range: menteeData.budgetRange || null,
-            preferred_communication: menteeData.preferredCommunication || null
+            preferred_communication: menteeData.preferredCommunication as any || null
           });
 
         if (menteeError) throw menteeError;

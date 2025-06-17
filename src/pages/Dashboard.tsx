@@ -51,11 +51,12 @@ export default function Dashboard() {
       if (profileError) throw profileError;
       setUserProfile(profile);
 
-      // Load user roles
+      // Load user roles - filter to only include valid roles
       const { data: roles, error: rolesError } = await supabase
         .from('user_roles')
         .select('role_type')
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .in('role_type', ['mentor', 'mentee', 'admin']);
 
       if (rolesError) throw rolesError;
       setUserRoles(roles || []);

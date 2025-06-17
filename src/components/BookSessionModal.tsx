@@ -25,7 +25,7 @@ export const BookSessionModal = ({ mentorId, isOpen, onClose }: BookSessionModal
   const [sessionData, setSessionData] = useState({
     title: '',
     description: '',
-    sessionType: 'one_on_one',
+    sessionType: 'one_on_one' as const,
     durationMinutes: '60',
     scheduledTime: ''
   });
@@ -140,7 +140,7 @@ export const BookSessionModal = ({ mentorId, isOpen, onClose }: BookSessionModal
                 <Label htmlFor="sessionType">Session Type</Label>
                 <Select 
                   value={sessionData.sessionType} 
-                  onValueChange={(value) => setSessionData(prev => ({ ...prev, sessionType: value }))}
+                  onValueChange={(value: 'one_on_one' | 'consultation' | 'group' | 'workshop') => setSessionData(prev => ({ ...prev, sessionType: value }))}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -149,6 +149,7 @@ export const BookSessionModal = ({ mentorId, isOpen, onClose }: BookSessionModal
                     <SelectItem value="one_on_one">One-on-One</SelectItem>
                     <SelectItem value="consultation">Consultation</SelectItem>
                     <SelectItem value="group">Group Session</SelectItem>
+                    <SelectItem value="workshop">Workshop</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
@@ -69,7 +68,7 @@ export const MentorDiscovery = () => {
           experience_years,
           rating,
           reviews_count,
-          users!inner (
+          users!mentors_mentor_id_fkey (
             first_name,
             last_name,
             bio,
