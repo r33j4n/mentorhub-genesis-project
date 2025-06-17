@@ -4,13 +4,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/components/ui/use-toast';
-import { Calendar } from '@/components/ui/calendar';
-import { format } from 'date-fns';
+import { SessionDetailsForm } from './BookSessionModal/SessionDetailsForm';
+import { SessionScheduleForm } from './BookSessionModal/SessionScheduleForm';
+import { SessionSummary } from './BookSessionModal/SessionSummary';
+import { SessionFormData, SessionType } from './BookSessionModal/SessionFormData';
 
 interface BookSessionModalProps {
   mentorId: string | null;
@@ -18,25 +16,21 @@ interface BookSessionModalProps {
   onClose: () => void;
 }
 
-type SessionType = 'one_on_one' | 'consultation' | 'group' | 'workshop';
-
 export const BookSessionModal = ({ mentorId, isOpen, onClose }: BookSessionModalProps) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [sessionData, setSessionData] = useState<{
-    title: string;
-    description: string;
-    sessionType: SessionType;
-    durationMinutes: string;
-    scheduledTime: string;
-  }>({
+  const [sessionData, setSessionData] = useState<SessionFormData>({
     title: '',
     description: '',
     sessionType: 'one_on_one',
     durationMinutes: '60',
     scheduledTime: ''
   });
+
+  const handleSessionDataChange = (newData: Partial<SessionFormData>) => {
+    setSessionData(prev => ({ ...prev, ...newData }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,101 +115,22 @@ export const BookSessionModal = ({ mentorId, isOpen, onClose }: BookSessionModal
         
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="title">Session Title</Label>
-              <Input
-                id="title"
-                value={sessionData.title}
-                onChange={(e) => setSessionData(prev => ({ ...prev, title: e.target.value }))}
-                placeholder="e.g., React.js mentoring session"
-                required
-              />
-            </div>
+            <SessionDetailsForm 
+              sessionData={sessionData}
+              onSessionDataChange={handleSessionDataChange}
+            />
 
-            <div>
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={sessionData.description}
-                onChange={(e) => setSessionData(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="What would you like to learn or discuss?"
-                rows={3}
-              />
-            </div>
+            <SessionScheduleForm
+              selectedDate={selectedDate}
+              onDateChange={setSelectedDate}
+              sessionData={sessionData}
+              onSessionDataChange={handleSessionDataChange}
+            />
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="sessionType">Session Type</Label>
-                <Select 
-                  value={sessionData.sessionType} 
-                  onValueChange={(value: SessionType) => setSessionData(prev => ({ ...prev, sessionType: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="one_on_one">One-on-One</SelectItem>
-                    <SelectItem value="consultation">Consultation</SelectItem>
-                    <SelectItem value="group">Group Session</SelectItem>
-                    <SelectItem value="workshop">Workshop</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="duration">Duration</Label>
-                <Select 
-                  value={sessionData.durationMinutes} 
-                  onValueChange={(value) => setSessionData(prev => ({ ...prev, durationMinutes: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="30">30 minutes</SelectItem>
-                    <SelectItem value="60">1 hour</SelectItem>
-                    <SelectItem value="90">1.5 hours</SelectItem>
-                    <SelectItem value="120">2 hours</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <Label>Select Date</Label>
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={setSelectedDate}
-                  disabled={(date) => date < new Date() || date < new Date(Date.now() - 86400000)}
-                  className="rounded-md border"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="time">Preferred Time</Label>
-                <Input
-                  id="time"
-                  type="time"
-                  value={sessionData.scheduledTime}
-                  onChange={(e) => setSessionData(prev => ({ ...prev, scheduledTime: e.target.value }))}
-                  required
-                />
-              </div>
-            </div>
-
-            {selectedDate && sessionData.scheduledTime && (
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <h4 className="font-medium text-blue-900">Session Summary</h4>
-                <p className="text-blue-700 text-sm mt-1">
-                  {format(selectedDate, 'EEEE, MMMM d, yyyy')} at {sessionData.scheduledTime}
-                </p>
-                <p className="text-blue-700 text-sm">
-                  Duration: {sessionData.durationMinutes} minutes
-                </p>
-              </div>
-            )}
+            <SessionSummary
+              selectedDate={selectedDate}
+              sessionData={sessionData}
+            />
           </div>
 
           <div className="flex justify-end space-x-3">
