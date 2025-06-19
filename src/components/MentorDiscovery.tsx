@@ -198,7 +198,7 @@ export const MentorDiscovery = () => {
                 <SelectValue placeholder="Expertise Area" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Areas</SelectItem>
+                <SelectItem value="all">All Areas</SelectItem>
                 {expertiseAreas.map(area => (
                   <SelectItem key={area.area_id} value={area.name}>
                     {area.name}
@@ -212,7 +212,7 @@ export const MentorDiscovery = () => {
                 <SelectValue placeholder="Price Range" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Any Price</SelectItem>
+                <SelectItem value="any">Any Price</SelectItem>
                 <SelectItem value="0-50">$0 - $50/hr</SelectItem>
                 <SelectItem value="50-100">$50 - $100/hr</SelectItem>
                 <SelectItem value="100-200">$100 - $200/hr</SelectItem>

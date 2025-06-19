@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,15 +31,17 @@ interface MentorCardProps {
 
 export const MentorCard = ({ mentor, onBookSession }: MentorCardProps) => {
   const { users: user, mentor_expertise } = mentor;
-  
+  if (!user) {
+    return null; // or render a fallback UI
+  }
   return (
     <Card className="h-full hover:shadow-lg transition-shadow">
       <CardHeader className="pb-3">
         <div className="flex items-start space-x-3">
           <Avatar className="h-12 w-12">
-            <AvatarImage src={user.profile_image} />
+            <AvatarImage src={user.profile_image || undefined} />
             <AvatarFallback>
-              {user.first_name[0]}{user.last_name[0]}
+              {user.first_name?.[0]}{user.last_name?.[0]}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
