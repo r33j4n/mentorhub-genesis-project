@@ -45,10 +45,10 @@ export const ProfileSetup = () => {
 
   // Mentee specific data
   const [menteeData, setMenteeData] = useState({
-    careerStage: '',
+    careerStage: 'student',
     goals: '',
-    budgetRange: '',
-    preferredCommunication: ''
+    budgetRange: '0-50',
+    preferredCommunication: 'chat'
   });
 
   useEffect(() => {
@@ -81,7 +81,7 @@ export const ProfileSetup = () => {
       .from('users')
       .select('*')
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
     if (userData && !userError) {
       setProfileData({

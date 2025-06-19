@@ -190,9 +190,9 @@ export default function Dashboard() {
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={userProfile.profile_image} />
+                  <AvatarImage src={userProfile.profile_image || undefined} />
                   <AvatarFallback>
-                    {userProfile.first_name[0]}{userProfile.last_name[0]}
+                    {userProfile.first_name?.[0] || ''}{userProfile.last_name?.[0] || ''}
                   </AvatarFallback>
                 </Avatar>
                 <span className="font-medium">
@@ -348,9 +348,9 @@ export default function Dashboard() {
               <CardContent className="space-y-4">
                 <div className="flex items-center space-x-4">
                   <Avatar className="h-20 w-20">
-                    <AvatarImage src={userProfile.profile_image} />
+                    <AvatarImage src={userProfile.profile_image || undefined} />
                     <AvatarFallback className="text-2xl">
-                      {userProfile.first_name[0]}{userProfile.last_name[0]}
+                      {userProfile.first_name?.[0] || ''}{userProfile.last_name?.[0] || ''}
                     </AvatarFallback>
                   </Avatar>
                   <div>
