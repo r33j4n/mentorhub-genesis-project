@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,72 +28,45 @@ export default function Dashboard() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [userRoles, setUserRoles] = useState<UserRole[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [sessions, setSessions] = useState([]);
 
   useEffect(() => {
-    console.log('Dashboard useEffect triggered, user:', user);
     if (user) {
       loadUserData();
-    } else {
-      setLoading(false);
     }
   }, [user]);
 
   const loadUserData = async () => {
-    if (!user) {
-      console.log('No user found, stopping data load');
-      setLoading(false);
-      return;
-    }
-
-    console.log('Loading user data for user:', user.id);
+    if (!user) return;
 
     try {
-      setError(null);
-      
       // Load user profile
-      console.log('Fetching user profile...');
       const { data: profile, error: profileError } = await supabase
         .from('users')
         .select('*')
         .eq('user_id', user.id)
-        .maybeSingle();
+        .single();
 
-      console.log('Profile data:', profile, 'Profile error:', profileError);
-
-      if (profileError) {
-        console.error('Profile error:', profileError);
-        throw profileError;
-      }
-      
+      if (profileError) throw profileError;
       setUserProfile(profile);
 
       // Load user roles - filter to only include valid roles and map to UserRole type
-      console.log('Fetching user roles...');
       const { data: roles, error: rolesError } = await supabase
         .from('user_roles')
         .select('role_type')
         .eq('user_id', user.id)
         .in('role_type', ['mentor', 'mentee', 'admin']);
 
-      console.log('Roles data:', roles, 'Roles error:', rolesError);
-
-      if (rolesError) {
-        console.error('Roles error:', rolesError);
-        throw rolesError;
-      }
+      if (rolesError) throw rolesError;
       
       // Filter and map to ensure only valid role types
       const validRoles: UserRole[] = (roles || [])
         .filter(role => ['mentor', 'mentee', 'admin'].includes(role.role_type))
         .map(role => ({ role_type: role.role_type as 'mentor' | 'mentee' | 'admin' }));
       
-      console.log('Valid roles:', validRoles);
       setUserRoles(validRoles);
 
       // Load sessions
-      console.log('Fetching sessions...');
       const { data: sessionsData, error: sessionsError } = await supabase
         .from('sessions')
         .select(`
@@ -110,14 +82,10 @@ export default function Dashboard() {
         .order('scheduled_start', { ascending: false })
         .limit(5);
 
-      console.log('Sessions data:', sessionsData, 'Sessions error:', sessionsError);
-
       if (!sessionsError) {
         setSessions(sessionsData || []);
       }
     } catch (error: any) {
-      console.error('Error loading user data:', error);
-      setError(error.message || 'Failed to load user data');
       toast({
         title: "Error loading profile",
         description: error.message,
@@ -132,8 +100,6 @@ export default function Dashboard() {
     await signOut();
   };
 
-  console.log('Dashboard render state:', { loading, userProfile, userRoles, error });
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -142,34 +108,13 @@ export default function Dashboard() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="text-red-600">Error</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-600 mb-4">{error}</p>
-            <Button onClick={() => window.location.reload()}>
-              Reload Page
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   // If user has no profile or roles, show profile setup
   if (!userProfile || userRoles.length === 0) {
-    console.log('Showing ProfileSetup - profile:', userProfile, 'roles:', userRoles);
     return <ProfileSetup />;
   }
 
   const isMentor = userRoles.some(role => role.role_type === 'mentor');
   const isMentee = userRoles.some(role => role.role_type === 'mentee');
-
-  console.log('User roles:', { isMentor, isMentee });
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -190,9 +135,9 @@ export default function Dashboard() {
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={userProfile.profile_image || undefined} />
+                  <AvatarImage src={userProfile.profile_image} />
                   <AvatarFallback>
-                    {userProfile.first_name?.[0] || ''}{userProfile.last_name?.[0] || ''}
+                    {userProfile.first_name[0]}{userProfile.last_name[0]}
                   </AvatarFallback>
                 </Avatar>
                 <span className="font-medium">
@@ -348,9 +293,9 @@ export default function Dashboard() {
               <CardContent className="space-y-4">
                 <div className="flex items-center space-x-4">
                   <Avatar className="h-20 w-20">
-                    <AvatarImage src={userProfile.profile_image || undefined} />
+                    <AvatarImage src={userProfile.profile_image} />
                     <AvatarFallback className="text-2xl">
-                      {userProfile.first_name?.[0] || ''}{userProfile.last_name?.[0] || ''}
+                      {userProfile.first_name[0]}{userProfile.last_name[0]}
                     </AvatarFallback>
                   </Avatar>
                   <div>
