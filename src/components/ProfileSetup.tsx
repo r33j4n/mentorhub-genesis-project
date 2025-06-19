@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/components/ui/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Users, User, Briefcase, Target, ArrowRight, CheckCircle } from 'lucide-react';
 
 interface ExpertiseArea {
   area_id: string;
@@ -215,39 +215,92 @@ export const ProfileSetup = () => {
 
   if (step === 1) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Welcome to MentorHub!</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-gray-600">
-              Let's get started by setting up your profile. Are you here to mentor others or to find a mentor?
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-100 to-purple-100 flex items-center justify-center p-4">
+        <Card className="w-full max-w-lg shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
+          <CardHeader className="text-center pb-6">
+            <div className="mx-auto w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center mb-4">
+              <Users className="h-8 w-8 text-white" />
+            </div>
+            <CardTitle className="text-2xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Welcome to MentorHub!
+            </CardTitle>
+            <p className="text-gray-600 mt-2">
+              Join our community of learners and mentors. Choose your path to get started.
             </p>
-            
-            <div className="space-y-3">
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-4">
               <Button
                 variant={userType === 'mentor' ? 'default' : 'outline'}
-                className="w-full"
+                className={`w-full h-16 text-left justify-start ${
+                  userType === 'mentor' 
+                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white' 
+                    : 'hover:bg-blue-50 hover:border-blue-200'
+                }`}
                 onClick={() => setUserType('mentor')}
               >
-                I want to be a Mentor
+                <div className="flex items-center space-x-4">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                    userType === 'mentor' ? 'bg-white/20' : 'bg-blue-100'
+                  }`}>
+                    <Briefcase className={`h-6 w-6 ${userType === 'mentor' ? 'text-white' : 'text-blue-600'}`} />
+                  </div>
+                  <div>
+                    <div className="font-semibold">I want to be a Mentor</div>
+                    <div className={`text-sm ${userType === 'mentor' ? 'text-white/80' : 'text-gray-500'}`}>
+                      Share your expertise and guide others
+                    </div>
+                  </div>
+                </div>
               </Button>
+              
               <Button
                 variant={userType === 'mentee' ? 'default' : 'outline'}
-                className="w-full"
+                className={`w-full h-16 text-left justify-start ${
+                  userType === 'mentee' 
+                    ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white' 
+                    : 'hover:bg-green-50 hover:border-green-200'
+                }`}
                 onClick={() => setUserType('mentee')}
               >
-                I'm looking for a Mentor
+                <div className="flex items-center space-x-4">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                    userType === 'mentee' ? 'bg-white/20' : 'bg-green-100'
+                  }`}>
+                    <Target className={`h-6 w-6 ${userType === 'mentee' ? 'text-white' : 'text-green-600'}`} />
+                  </div>
+                  <div>
+                    <div className="font-semibold">I'm looking for a Mentor</div>
+                    <div className={`text-sm ${userType === 'mentee' ? 'text-white/80' : 'text-gray-500'}`}>
+                      Learn from experienced professionals
+                    </div>
+                  </div>
+                </div>
               </Button>
             </div>
 
             <Button 
               onClick={handleUserTypeSubmit} 
               disabled={!userType || loading}
-              className="w-full"
+              className={`w-full h-12 ${
+                !userType 
+                  ? 'bg-gray-200 text-gray-400' 
+                  : userType === 'mentor'
+                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
+                    : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'
+              } text-white font-semibold`}
             >
-              {loading ? 'Setting up...' : 'Continue'}
+              {loading ? (
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Setting up...
+                </div>
+              ) : (
+                <div className="flex items-center justify-center">
+                  Continue
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </div>
+              )}
             </Button>
           </CardContent>
         </Card>
@@ -256,48 +309,73 @@ export const ProfileSetup = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl">
-        <CardHeader>
-          <CardTitle>Complete Your Profile</CardTitle>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-100 to-purple-100 flex items-center justify-center p-4">
+      <Card className="w-full max-w-4xl shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
+        <CardHeader className="text-center pb-6">
+          <div className="mx-auto w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center mb-4">
+            <User className="h-8 w-8 text-white" />
+          </div>
+          <CardTitle className="text-2xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            Complete Your Profile
+          </CardTitle>
+          <p className="text-gray-600 mt-2">
+            Tell us about yourself to create the perfect {userType} experience
+          </p>
         </CardHeader>
-        <CardContent className="space-y-6">
+        
+        <CardContent className="space-y-8">
           {/* Basic Profile Information */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Basic Information</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="firstName">First Name</Label>
+          <div className="space-y-6">
+            <div className="flex items-center space-x-2 mb-4">
+              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                <CheckCircle className="h-5 w-5 text-blue-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900">Basic Information</h3>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="firstName" className="text-sm font-medium text-gray-700">First Name *</Label>
                 <Input
                   id="firstName"
                   value={profileData.firstName}
                   onChange={(e) => setProfileData(prev => ({ ...prev, firstName: e.target.value }))}
+                  className="h-12 border-2 border-gray-200 focus:border-blue-500 transition-colors"
+                  placeholder="Enter your first name"
                 />
               </div>
-              <div>
-                <Label htmlFor="lastName">Last Name</Label>
+              <div className="space-y-2">
+                <Label htmlFor="lastName" className="text-sm font-medium text-gray-700">Last Name *</Label>
                 <Input
                   id="lastName"
                   value={profileData.lastName}
                   onChange={(e) => setProfileData(prev => ({ ...prev, lastName: e.target.value }))}
+                  className="h-12 border-2 border-gray-200 focus:border-blue-500 transition-colors"
+                  placeholder="Enter your last name"
                 />
               </div>
             </div>
-            <div>
-              <Label htmlFor="bio">Bio</Label>
+            
+            <div className="space-y-2">
+              <Label htmlFor="bio" className="text-sm font-medium text-gray-700">Bio *</Label>
               <Textarea
                 id="bio"
-                placeholder="Tell us about yourself..."
+                placeholder="Tell us about yourself, your experience, and what you're passionate about..."
                 value={profileData.bio}
                 onChange={(e) => setProfileData(prev => ({ ...prev, bio: e.target.value }))}
+                className="min-h-32 border-2 border-gray-200 focus:border-blue-500 transition-colors resize-none"
               />
             </div>
-            <div>
-              <Label htmlFor="phone">Phone (optional)</Label>
+            
+            <div className="space-y-2">
+              <Label htmlFor="phone" className="text-sm font-medium text-gray-700">Phone (optional)</Label>
               <Input
                 id="phone"
+                type="tel"
                 value={profileData.phone}
                 onChange={(e) => setProfileData(prev => ({ ...prev, phone: e.target.value }))}
+                className="h-12 border-2 border-gray-200 focus:border-blue-500 transition-colors"
+                placeholder="Enter your phone number"
               />
             </div>
           </div>
@@ -430,9 +508,25 @@ export const ProfileSetup = () => {
             </div>
           )}
 
-          <Button onClick={handleProfileSubmit} disabled={loading} className="w-full">
-            {loading ? 'Creating Profile...' : 'Complete Setup'}
-          </Button>
+          <div className="pt-6 border-t border-gray-200">
+            <Button 
+              onClick={handleProfileSubmit} 
+              disabled={loading || !profileData.firstName || !profileData.lastName || !profileData.bio} 
+              className="w-full h-14 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold text-lg shadow-lg"
+            >
+              {loading ? (
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+                  Creating Your Profile...
+                </div>
+              ) : (
+                <div className="flex items-center justify-center">
+                  Complete Setup
+                  <CheckCircle className="h-5 w-5 ml-2" />
+                </div>
+              )}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

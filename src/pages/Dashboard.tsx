@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Users, Calendar, Star, DollarSign, LogOut } from 'lucide-react';
+import { Users, Calendar, Star, DollarSign, LogOut, Search, User } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 
 interface UserProfile {
@@ -86,6 +86,7 @@ export default function Dashboard() {
         setSessions(sessionsData || []);
       }
     } catch (error: any) {
+      console.error('Error loading user data:', error);
       toast({
         title: "Error loading profile",
         description: error.message,
@@ -102,8 +103,11 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your dashboard...</p>
+        </div>
       </div>
     );
   }
@@ -117,34 +121,36 @@ export default function Dashboard() {
   const isMentee = userRoles.some(role => role.role_type === 'mentee');
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <header className="bg-white/80 backdrop-blur-sm shadow-lg border-b border-white/20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <h1 className="text-2xl font-bold text-gray-900">MentorHub</h1>
+            <div className="flex items-center space-x-6">
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                MentorHub
+              </h1>
               <div className="flex space-x-2">
                 {userRoles.map((role) => (
-                  <Badge key={role.role_type} variant="secondary">
+                  <Badge key={role.role_type} variant="secondary" className="bg-blue-100 text-blue-800 px-3 py-1">
                     {role.role_type.charAt(0).toUpperCase() + role.role_type.slice(1)}
                   </Badge>
                 ))}
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <Avatar className="h-8 w-8">
+              <div className="flex items-center space-x-3 bg-white/50 rounded-full px-4 py-2">
+                <Avatar className="h-10 w-10 border-2 border-white">
                   <AvatarImage src={userProfile.profile_image} />
-                  <AvatarFallback>
+                  <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
                     {userProfile.first_name[0]}{userProfile.last_name[0]}
                   </AvatarFallback>
                 </Avatar>
-                <span className="font-medium">
+                <span className="font-medium text-gray-900">
                   {userProfile.first_name} {userProfile.last_name}
                 </span>
               </div>
-              <Button variant="outline" size="sm" onClick={handleSignOut}>
+              <Button variant="outline" size="sm" onClick={handleSignOut} className="hover:bg-red-50 hover:text-red-600 hover:border-red-200">
                 <LogOut className="h-4 w-4 mr-2" />
                 Sign Out
               </Button>
@@ -155,73 +161,95 @@ export default function Dashboard() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue={isMentee ? "discover" : "overview"} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            {isMentee && <TabsTrigger value="discover">Find Mentors</TabsTrigger>}
-            <TabsTrigger value="sessions">Sessions</TabsTrigger>
-            <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4 bg-white/80 backdrop-blur-sm p-2 rounded-xl shadow-lg">
+            <TabsTrigger value="overview" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white rounded-lg transition-all">
+              <Calendar className="h-4 w-4 mr-2" />
+              Overview
+            </TabsTrigger>
+            {isMentee && (
+              <TabsTrigger value="discover" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white rounded-lg transition-all">
+                <Search className="h-4 w-4 mr-2" />
+                Find Mentors
+              </TabsTrigger>
+            )}
+            <TabsTrigger value="sessions" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white rounded-lg transition-all">
+              <Users className="h-4 w-4 mr-2" />
+              Sessions
+            </TabsTrigger>
+            <TabsTrigger value="profile" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white rounded-lg transition-all">
+              <User className="h-4 w-4 mr-2" />
+              Profile
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
+            {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card>
+              <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total Sessions</CardTitle>
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <Calendar className="h-4 w-4 text-blue-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{sessions.length}</div>
+                  <div className="text-2xl font-bold text-gray-900">{sessions.length}</div>
                 </CardContent>
               </Card>
               
               {isMentor && (
                 <>
-                  <Card>
+                  <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-shadow">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium">Rating</CardTitle>
-                      <Star className="h-4 w-4 text-muted-foreground" />
+                      <Star className="h-4 w-4 text-yellow-500" />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">4.8</div>
+                      <div className="text-2xl font-bold text-gray-900">4.8</div>
                     </CardContent>
                   </Card>
                   
-                  <Card>
+                  <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-shadow">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium">Total Earnings</CardTitle>
-                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                      <DollarSign className="h-4 w-4 text-green-600" />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">$2,345</div>
+                      <div className="text-2xl font-bold text-gray-900">$2,345</div>
                     </CardContent>
                   </Card>
                 </>
               )}
               
-              <Card>
+              <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Active Connections</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <Users className="h-4 w-4 text-purple-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">12</div>
+                  <div className="text-2xl font-bold text-gray-900">12</div>
                 </CardContent>
               </Card>
             </div>
 
-            <Card>
+            {/* Recent Sessions */}
+            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
               <CardHeader>
-                <CardTitle>Recent Sessions</CardTitle>
+                <CardTitle className="text-xl text-gray-900">Recent Sessions</CardTitle>
               </CardHeader>
               <CardContent>
                 {sessions.length === 0 ? (
-                  <p className="text-gray-500 text-center py-4">No sessions yet</p>
+                  <div className="text-center py-12">
+                    <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                      <Calendar className="h-8 w-8 text-gray-400" />
+                    </div>
+                    <p className="text-gray-500 text-lg">No sessions yet</p>
+                    <p className="text-gray-400 text-sm mt-2">Your upcoming sessions will appear here</p>
+                  </div>
                 ) : (
                   <div className="space-y-3">
                     {sessions.slice(0, 5).map((session: any) => (
-                      <div key={session.session_id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div key={session.session_id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                         <div>
-                          <h4 className="font-medium">{session.title}</h4>
+                          <h4 className="font-medium text-gray-900">{session.title}</h4>
                           <p className="text-sm text-gray-600">
                             {new Date(session.scheduled_start).toLocaleDateString()}
                           </p>
