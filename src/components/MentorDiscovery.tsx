@@ -61,54 +61,106 @@ export const MentorDiscovery = () => {
   }, [mentors, searchTerm, selectedExpertise, priceRange, sortBy]);
 
   const loadMentors = async () => {
-    console.log('Loading mentors...');
+    console.log('Starting to load mentors...');
+    setLoading(true);
+    
     try {
-      const { data, error } = await supabase
+      // First, let's get all mentors
+      const { data: mentorsData, error: mentorsError } = await supabase
         .from('mentors')
-        .select(`
-          mentor_id,
-          hourly_rate,
-          experience_years,
-          rating,
-          reviews_count,
-          users!mentors_mentor_id_fkey (
-            first_name,
-            last_name,
-            bio,
-            profile_image,
-            timezone
-          ),
-          mentor_expertise (
-            expertise_areas (
-              name,
-              category
-            )
-          )
-        `)
-        .eq('is_approved', true)
-        .order('rating', { ascending: false });
+        .select('*')
+        .eq('is_approved', true);
 
-      console.log('Mentors data:', data);
-      console.log('Mentors error:', error);
+      console.log('Mentors query result:', { mentorsData, mentorsError });
 
-      if (error) {
-        console.error('Error fetching mentors:', error);
+      if (mentorsError) {
+        console.error('Error fetching mentors:', mentorsError);
         toast({
           title: "Error loading mentors",
-          description: error.message,
+          description: mentorsError.message,
           variant: "destructive"
         });
-      } else {
-        // Filter out mentors without user data
-        const validMentors = (data || []).filter(mentor => mentor.users);
-        console.log('Valid mentors:', validMentors);
-        setMentors(validMentors);
+        return;
       }
+
+      if (!mentorsData || mentorsData.length === 0) {
+        console.log('No mentors found in database');
+        setMentors([]);
+        return;
+      }
+
+      // Now get user data for each mentor
+      const mentorIds = mentorsData.map(mentor => mentor.mentor_id);
+      console.log('Mentor IDs:', mentorIds);
+
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('*')
+        .in('user_id', mentorIds);
+
+      console.log('Users query result:', { usersData, usersError });
+
+      if (usersError) {
+        console.error('Error fetching users:', usersError);
+        toast({
+          title: "Error loading mentor profiles",
+          description: usersError.message,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Get expertise data for each mentor
+      const { data: expertiseData, error: expertiseError } = await supabase
+        .from('mentor_expertise')
+        .select(`
+          mentor_id,
+          expertise_areas (
+            name,
+            category
+          )
+        `)
+        .in('mentor_id', mentorIds);
+
+      console.log('Expertise query result:', { expertiseData, expertiseError });
+
+      if (expertiseError) {
+        console.error('Error fetching expertise:', expertiseError);
+      }
+
+      // Combine the data
+      const combinedMentors = mentorsData.map(mentor => {
+        const user = usersData?.find(u => u.user_id === mentor.mentor_id);
+        const expertise = expertiseData?.filter(e => e.mentor_id === mentor.mentor_id) || [];
+        
+        if (!user) {
+          console.log(`No user found for mentor ${mentor.mentor_id}`);
+          return null;
+        }
+
+        return {
+          ...mentor,
+          users: {
+            first_name: user.first_name || '',
+            last_name: user.last_name || '',
+            bio: user.bio || '',
+            profile_image: user.profile_image || '',
+            timezone: user.timezone || 'UTC'
+          },
+          mentor_expertise: expertise.map(e => ({
+            expertise_areas: e.expertise_areas
+          }))
+        };
+      }).filter(mentor => mentor !== null) as Mentor[];
+
+      console.log('Combined mentors:', combinedMentors);
+      setMentors(combinedMentors);
+
     } catch (error: any) {
-      console.error('Unexpected error:', error);
+      console.error('Unexpected error loading mentors:', error);
       toast({
         title: "Error loading mentors",
-        description: error.message,
+        description: error.message || 'An unexpected error occurred',
         variant: "destructive"
       });
     } finally {
@@ -117,14 +169,18 @@ export const MentorDiscovery = () => {
   };
 
   const loadExpertiseAreas = async () => {
-    const { data, error } = await supabase
-      .from('expertise_areas')
-      .select('*')
-      .eq('is_active', true)
-      .order('name');
+    try {
+      const { data, error } = await supabase
+        .from('expertise_areas')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
 
-    if (!error) {
-      setExpertiseAreas(data || []);
+      if (!error && data) {
+        setExpertiseAreas(data);
+      }
+    } catch (error) {
+      console.error('Error loading expertise areas:', error);
     }
   };
 
@@ -213,6 +269,17 @@ export const MentorDiscovery = () => {
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Find Your Perfect Mentor</h1>
           <p className="text-xl text-gray-600">Connect with experienced professionals who can guide your career journey</p>
         </div>
+
+        {/* Debug Info */}
+        {process.env.NODE_ENV === 'development' && (
+          <Card className="bg-yellow-50 border-yellow-200">
+            <CardContent className="py-4">
+              <p className="text-sm text-yellow-800">
+                Debug: Found {mentors.length} total mentors, {filteredMentors.length} after filters
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Search and Filters */}
         <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
@@ -316,6 +383,18 @@ export const MentorDiscovery = () => {
                       Clear All Filters
                     </Button>
                   )}
+                  <div className="mt-4 text-sm text-gray-500">
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => {
+                        console.log('Reloading mentors...');
+                        loadMentors();
+                      }}
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      Try reloading
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -344,7 +423,7 @@ export const MentorDiscovery = () => {
                 </div>
                 <div>
                   <div className="text-3xl font-bold text-green-600 mb-2">
-                    {Math.round(mentors.reduce((acc, m) => acc + m.rating, 0) / mentors.length * 10) / 10}
+                    {mentors.length > 0 ? Math.round(mentors.reduce((acc, m) => acc + m.rating, 0) / mentors.length * 10) / 10 : 0}
                   </div>
                   <div className="text-gray-600 flex items-center justify-center gap-1">
                     <Star className="h-4 w-4 text-yellow-400" />
