@@ -32,7 +32,7 @@ interface EditUserModalProps {
   onUserUpdated: () => void;
 }
 
-const ROLE_OPTIONS = ['admin', 'mentor', 'mentee'];
+const ROLE_OPTIONS: Array<'admin' | 'mentor' | 'mentee'> = ['admin', 'mentor', 'mentee'];
 
 export const EditUserModal = ({ user, isOpen, onClose, onUserUpdated }: EditUserModalProps) => {
   const [formData, setFormData] = useState({
@@ -43,7 +43,7 @@ export const EditUserModal = ({ user, isOpen, onClose, onUserUpdated }: EditUser
     profile_image: '',
     is_active: true
   });
-  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [selectedRoles, setSelectedRoles] = useState<Array<'admin' | 'mentor' | 'mentee'>>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -56,7 +56,7 @@ export const EditUserModal = ({ user, isOpen, onClose, onUserUpdated }: EditUser
         profile_image: user.profile_image || '',
         is_active: user.is_active
       });
-      setSelectedRoles(user.user_roles.map(role => role.role_type));
+      setSelectedRoles(user.user_roles.map(role => role.role_type as 'admin' | 'mentor' | 'mentee').filter(role => ROLE_OPTIONS.includes(role)));
     }
   }, [user]);
 
@@ -123,7 +123,7 @@ export const EditUserModal = ({ user, isOpen, onClose, onUserUpdated }: EditUser
     }
   };
 
-  const handleRoleChange = (role: string, checked: boolean) => {
+  const handleRoleChange = (role: 'admin' | 'mentor' | 'mentee', checked: boolean) => {
     if (checked) {
       setSelectedRoles(prev => [...prev, role]);
     } else {

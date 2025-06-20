@@ -45,7 +45,7 @@ const BUDGET_RANGES = [
 
 export const EditMenteeModal = ({ mentee, isOpen, onClose, onMenteeUpdated }: EditMenteeModalProps) => {
   const [formData, setFormData] = useState({
-    career_stage: '',
+    career_stage: '' as 'student' | 'entry_level' | 'mid_level' | 'senior_level' | 'executive' | '',
     goals: '',
     budget_range: ''
   });
@@ -54,7 +54,7 @@ export const EditMenteeModal = ({ mentee, isOpen, onClose, onMenteeUpdated }: Ed
   useEffect(() => {
     if (mentee) {
       setFormData({
-        career_stage: mentee.career_stage || '',
+        career_stage: mentee.career_stage as 'student' | 'entry_level' | 'mid_level' | 'senior_level' | 'executive' | '',
         goals: mentee.goals || '',
         budget_range: mentee.budget_range || ''
       });
@@ -110,7 +110,7 @@ export const EditMenteeModal = ({ mentee, isOpen, onClose, onMenteeUpdated }: Ed
         <div className="space-y-4 py-4">
           <div>
             <Label htmlFor="career_stage">Career Stage</Label>
-            <Select value={formData.career_stage} onValueChange={(value) => setFormData(prev => ({ ...prev, career_stage: value }))}>
+            <Select value={formData.career_stage} onValueChange={(value) => setFormData(prev => ({ ...prev, career_stage: value as typeof formData.career_stage }))}>
               <SelectTrigger>
                 <SelectValue placeholder="Select career stage" />
               </SelectTrigger>
