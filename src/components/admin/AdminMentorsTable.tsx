@@ -24,7 +24,7 @@ interface Mentor {
     last_name: string;
     email: string;
     profile_image: string;
-  };
+  } | null;
 }
 
 interface AdminMentorsTableProps {
@@ -64,7 +64,13 @@ export const AdminMentorsTable = ({ onStatsChange }: AdminMentorsTableProps) => 
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setMentors(data || []);
+      
+      // Filter out mentors with invalid user data and cast to our interface
+      const validMentors = (data || []).filter(mentor => 
+        mentor.users && typeof mentor.users === 'object' && !mentor.users.error
+      ) as Mentor[];
+      
+      setMentors(validMentors);
     } catch (error: any) {
       console.error('Error loading mentors:', error);
       toast({
