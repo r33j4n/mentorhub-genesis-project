@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -65,10 +64,15 @@ export const AdminMentorsTable = ({ onStatsChange }: AdminMentorsTableProps) => 
 
       if (error) throw error;
       
-      // Filter out mentors with invalid user data and cast to our interface
-      const validMentors = (data || []).filter(mentor => 
-        mentor.users && typeof mentor.users === 'object' && !mentor.users.error
-      ) as Mentor[];
+      // Filter out mentors with invalid user data
+      const validMentors = (data || []).filter(mentor => {
+        return mentor.users && 
+               typeof mentor.users === 'object' && 
+               !('error' in mentor.users) &&
+               mentor.users.first_name &&
+               mentor.users.last_name &&
+               mentor.users.email;
+      }) as Mentor[];
       
       setMentors(validMentors);
     } catch (error: any) {
