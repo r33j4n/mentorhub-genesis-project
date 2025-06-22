@@ -29,6 +29,7 @@ export default function Dashboard() {
   const [userRoles, setUserRoles] = useState<UserRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [sessions, setSessions] = useState([]);
+  const [requestedSessions, setRequestedSessions] = useState([]);
 
   useEffect(() => {
     if (user) {
@@ -79,11 +80,16 @@ export default function Dashboard() {
           )
         `)
         .or(`mentor_id.eq.${user.id},mentee_id.eq.${user.id}`)
-        .order('scheduled_start', { ascending: false })
-        .limit(5);
+        .order('scheduled_start', { ascending: false });
 
       if (!sessionsError) {
         setSessions(sessionsData || []);
+        // For mentors, filter requested sessions
+        if (validRoles.some(role => role.role_type === 'mentor')) {
+          setRequestedSessions((sessionsData || []).filter((s: any) => s.status === 'requested' && s.mentor_id === user.id));
+        } else {
+          setRequestedSessions([]);
+        }
       }
     } catch (error: any) {
       console.error('Error loading user data:', error);
@@ -176,6 +182,12 @@ export default function Dashboard() {
               <Users className="h-4 w-4 mr-2" />
               Sessions
             </TabsTrigger>
+            {isMentor && (
+              <TabsTrigger value="requested" className="data-[state=active]:bg-yellow-500 data-[state=active]:text-white rounded-lg transition-all">
+                <Users className="h-4 w-4 mr-2" />
+                Requested Sessions
+              </TabsTrigger>
+            )}
             <TabsTrigger value="profile" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white rounded-lg transition-all">
               <User className="h-4 w-4 mr-2" />
               Profile
@@ -286,7 +298,7 @@ export default function Dashboard() {
                 ) : (
                   <div className="space-y-4">
                     {sessions.map((session: any) => (
-                      <div key={session.session_id} className="border rounded-lg p-4">
+                      <div key={session.session_id} className={`border rounded-lg p-4 ${session.status === 'requested' && isMentor ? 'bg-yellow-50 border-yellow-400' : ''}`}>
                         <div className="flex items-start justify-between">
                           <div className="space-y-2">
                             <h3 className="font-semibold">{session.title}</h3>
@@ -298,12 +310,47 @@ export default function Dashboard() {
                             </div>
                           </div>
                           <Badge variant={
+                            session.status === 'requested' && isMentor ? 'outline' :
                             session.status === 'completed' ? 'default' :
                             session.status === 'confirmed' ? 'secondary' :
                             session.status === 'cancelled' ? 'destructive' : 'outline'
-                          }>
-                            {session.status}
+                          }
+                          className={session.status === 'requested' && isMentor ? 'bg-yellow-200 text-yellow-800 border-yellow-400' : ''}
+                          >
+                            {session.status === 'requested' && isMentor ? 'Requested' : session.status}
                           </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="requested">
+            <Card>
+              <CardHeader>
+                <CardTitle>Requested Sessions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {requestedSessions.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">No requested sessions</p>
+                ) : (
+                  <div className="space-y-4">
+                    {requestedSessions.map((session: any) => (
+                      <div key={session.session_id} className="border rounded-lg p-4 bg-yellow-50">
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-2">
+                            <h3 className="font-semibold">{session.title}</h3>
+                            <p className="text-gray-600">{session.description}</p>
+                            <div className="flex items-center space-x-4 text-sm text-gray-500">
+                              <span>{new Date(session.scheduled_start).toLocaleString()}</span>
+                              <span>{session.duration_minutes} minutes</span>
+                              <span>${session.final_price}</span>
+                            </div>
+                          </div>
+                          <Badge variant="outline" className="bg-yellow-200 text-yellow-800 border-yellow-400">Requested</Badge>
                         </div>
                       </div>
                     ))}
