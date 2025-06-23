@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -91,11 +92,13 @@ export const AdminMentorsTable = ({ onStatsChange }: AdminMentorsTableProps) => 
     }
 
     const searchLower = searchTerm.toLowerCase();
-    const filtered = mentors.filter(mentor => 
-      mentor.users?.first_name?.toLowerCase().includes(searchLower) ||
-      mentor.users?.last_name?.toLowerCase().includes(searchLower) ||
-      mentor.users?.email?.toLowerCase().includes(searchLower)
-    );
+    const filtered = mentors.filter(mentor => {
+      if (!mentor.users) return false;
+      
+      return mentor.users.first_name?.toLowerCase().includes(searchLower) ||
+             mentor.users.last_name?.toLowerCase().includes(searchLower) ||
+             mentor.users.email?.toLowerCase().includes(searchLower);
+    });
     setFilteredMentors(filtered);
   };
 

@@ -9,6 +9,8 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
+import MentorDashboard from "./pages/MentorDashboard";
+import MenteeDashboard from "./pages/MenteeDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 
@@ -27,6 +29,16 @@ const App = () => (
             <Route path="/dashboard" element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/mentor-dashboard" element={
+              <ProtectedRoute>
+                <MentorDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/mentee-dashboard" element={
+              <ProtectedRoute>
+                <MenteeDashboard />
               </ProtectedRoute>
             } />
             <Route path="/admin" element={
