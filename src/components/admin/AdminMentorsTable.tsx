@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -64,15 +65,21 @@ export const AdminMentorsTable = ({ onStatsChange }: AdminMentorsTableProps) => 
 
       if (error) throw error;
       
-      // Filter out mentors with invalid user data
-      const validMentors = (data || []).filter(mentor => {
-        return mentor.users && 
-               typeof mentor.users === 'object' && 
-               !('error' in mentor.users) &&
-               mentor.users.first_name &&
-               mentor.users.last_name &&
-               mentor.users.email;
-      }) as Mentor[];
+      // Filter out mentors with invalid user data and properly type the result
+      const validMentors: Mentor[] = (data || [])
+        .filter((mentor: any) => {
+          // Check if users data exists and is valid
+          return mentor.users && 
+                 typeof mentor.users === 'object' && 
+                 !('error' in mentor.users) &&
+                 mentor.users.first_name &&
+                 mentor.users.last_name &&
+                 mentor.users.email;
+        })
+        .map((mentor: any) => ({
+          ...mentor,
+          users: mentor.users
+        }));
       
       setMentors(validMentors);
     } catch (error: any) {
@@ -94,11 +101,13 @@ export const AdminMentorsTable = ({ onStatsChange }: AdminMentorsTableProps) => 
     }
 
     const searchLower = searchTerm.toLowerCase();
-    const filtered = mentors.filter(mentor => 
-      mentor.users?.first_name?.toLowerCase().includes(searchLower) ||
-      mentor.users?.last_name?.toLowerCase().includes(searchLower) ||
-      mentor.users?.email?.toLowerCase().includes(searchLower)
-    );
+    const filtered = mentors.filter(mentor => {
+      if (!mentor.users) return false;
+      
+      return mentor.users.first_name?.toLowerCase().includes(searchLower) ||
+             mentor.users.last_name?.toLowerCase().includes(searchLower) ||
+             mentor.users.email?.toLowerCase().includes(searchLower);
+    });
     setFilteredMentors(filtered);
   };
 
