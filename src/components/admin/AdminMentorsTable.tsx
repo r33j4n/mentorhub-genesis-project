@@ -53,7 +53,7 @@ export const AdminMentorsTable = ({ onStatsChange }: AdminMentorsTableProps) => 
         .from('mentors')
         .select(`
           *,
-          users (
+          users:mentors_mentor_id_fkey (
             first_name,
             last_name,
             email,
@@ -66,13 +66,10 @@ export const AdminMentorsTable = ({ onStatsChange }: AdminMentorsTableProps) => 
       
       // Filter out mentors with invalid user data
       const validMentors = (data || []).filter(mentor => {
-        return mentor.users && 
-               typeof mentor.users === 'object' && 
-               !('error' in mentor.users) &&
-               mentor.users.first_name &&
-               mentor.users.last_name &&
-               mentor.users.email;
-      }) as Mentor[];
+        if (!mentor.users || typeof mentor.users !== 'object' || 'error' in mentor.users) return false;
+        const user = mentor.users as any;
+        return user.first_name && user.last_name && user.email;
+      }).map(mentor => ({ ...mentor, users: mentor.users as any })) as Mentor[];
       
       setMentors(validMentors);
     } catch (error: any) {

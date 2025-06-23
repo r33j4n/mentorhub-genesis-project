@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
@@ -68,7 +67,16 @@ export const MentorDiscovery = () => {
       // First, let's get all mentors
       const { data: mentorsData, error: mentorsError } = await supabase
         .from('mentors')
-        .select('*')
+        .select(`
+          *,
+          users:mentor_id (
+            first_name,
+            last_name,
+            bio,
+            profile_image,
+            timezone
+          )
+        `)
         .eq('is_approved', true);
 
       console.log('Mentors query result:', { mentorsData, mentorsError });

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -52,7 +51,7 @@ export const AdminMenteesTable = ({ onStatsChange }: AdminMenteesTableProps) => 
         .from('mentees')
         .select(`
           *,
-          users (
+          users:mentees_mentee_id_fkey (
             first_name,
             last_name,
             email,
