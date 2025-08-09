@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthForm } from '@/components/AuthForm';
 import { Button } from '@/components/ui/button';
+import { Logo } from '@/components/ui/logo';
 
 const Auth = () => {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
@@ -11,7 +12,9 @@ const Auth = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">MentorHub</h1>
+          <div className="flex justify-center mb-4">
+            <Logo size="xl" variant="default" />
+          </div>
           <p className="text-gray-600">Connect with expert mentors worldwide</p>
         </div>
         

@@ -1,16 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
-import { MentorCard } from './MentorCard';
-import { BookSessionModal } from './BookSessionModal';
+import { Progress } from '@/components/ui/progress';
+import { 
+  Search, 
+  Filter, 
+  X, 
+  ChevronDown, 
+  ChevronUp, 
+  Star, 
+  Users, 
+  Calendar, 
+  MessageCircle,
+  CheckCircle,
+  DollarSign,
+  Clock,
+  MapPin,
+  BookOpen,
+  Award,
+  ArrowLeft
+} from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
-import { Search, Filter, Users, Star, MapPin, Clock, DollarSign, Award, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 interface ExpertiseArea {
   area_id: string;
@@ -39,22 +57,20 @@ interface Mentor {
   }>;
 }
 
-export const MentorDiscovery = () => {
+export const Mentors = () => {
   const [mentors, setMentors] = useState<Mentor[]>([]);
   const [filteredMentors, setFilteredMentors] = useState<Mentor[]>([]);
   const [expertiseAreas, setExpertiseAreas] = useState<ExpertiseArea[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedMentor, setSelectedMentor] = useState<string | null>(null);
-  
-  // Advanced Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedExpertise, setSelectedExpertise] = useState('');
+  const [sortBy, setSortBy] = useState('rating');
   const [priceRange, setPriceRange] = useState([0, 500]);
   const [experienceRange, setExperienceRange] = useState([0, 20]);
   const [ratingFilter, setRatingFilter] = useState(0);
-  const [sortBy, setSortBy] = useState('rating');
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [selectedMentor, setSelectedMentor] = useState<Mentor | null>(null);
 
   useEffect(() => {
     loadMentors();
@@ -70,7 +86,6 @@ export const MentorDiscovery = () => {
     setLoading(true);
     
     try {
-      // First, let's get all mentors (including unapproved for testing)
       const { data: mentorsData, error: mentorsError } = await supabase
         .from('mentors')
         .select(`
@@ -103,7 +118,6 @@ export const MentorDiscovery = () => {
         return;
       }
 
-      // Now get user data for each mentor
       const mentorsWithUserData = await Promise.all(
         mentorsData.map(async (mentor) => {
           const { data: userData, error: userError } = await supabase
@@ -117,7 +131,6 @@ export const MentorDiscovery = () => {
             return null;
           }
 
-          // Get mentor expertise
           const { data: expertiseData, error: expertiseError } = await supabase
             .from('mentor_expertise')
             .select(`
@@ -143,12 +156,6 @@ export const MentorDiscovery = () => {
       const validMentors = mentorsWithUserData.filter(mentor => mentor !== null);
       console.log('Final mentors data:', validMentors);
       console.log('Total mentors loaded:', validMentors.length);
-      console.log('Mentors with user data:', validMentors.map(m => ({
-        id: m.mentor_id,
-        name: `${m.users?.first_name} ${m.users?.last_name}`,
-        approved: m.is_approved,
-        expertise: m.mentor_expertise?.length || 0
-      })));
       setMentors(validMentors);
     } catch (error: any) {
       console.error('Error in loadMentors:', error);
@@ -167,17 +174,12 @@ export const MentorDiscovery = () => {
       const { data, error } = await supabase
         .from('expertise_areas')
         .select('*')
-        .eq('is_active', true)
-        .order('category', { ascending: true });
+        .order('category');
 
-      if (error) {
-        console.error('Error loading expertise areas:', error);
-        return;
-      }
-
+      if (error) throw error;
       setExpertiseAreas(data || []);
-    } catch (error) {
-      console.error('Error in loadExpertiseAreas:', error);
+    } catch (error: any) {
+      console.error('Error loading expertise areas:', error);
     }
   };
 
@@ -266,6 +268,16 @@ export const MentorDiscovery = () => {
     return Array.from(categories);
   };
 
+  const getAvailabilityStatus = (mentor: Mentor) => {
+    // Mock availability - in real app this would come from database
+    const isAvailable = Math.random() > 0.3;
+    return {
+      available: isAvailable,
+      text: isAvailable ? 'Available' : 'Busy',
+      color: isAvailable ? 'text-green-600' : 'text-orange-600'
+    };
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -285,32 +297,24 @@ export const MentorDiscovery = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="px-4 py-8 space-y-8">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Find Your Perfect Mentor</h1>
-          <p className="text-xl text-gray-600 mb-4">Connect with experienced professionals who can guide your career journey</p>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <Users className="h-5 w-5 text-blue-600" />
-              <span className="text-blue-800 font-medium">
-                Browse all {mentors.length} available mentors in our platform
-              </span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link to="/">
+              <Button variant="outline" size="sm">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+              </Button>
+            </Link>
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900 mb-2">Find Your Perfect Mentor</h1>
+              <p className="text-xl text-gray-600">Connect with experienced professionals who can guide your career journey</p>
             </div>
-            <p className="text-blue-700 text-sm">
-              Use the filters below to narrow down your search and find the perfect mentor for your needs
-            </p>
+          </div>
+          <div className="text-right">
+            <div className="text-2xl font-bold text-blue-600">{mentors.length}</div>
+            <div className="text-gray-600">Available Mentors</div>
           </div>
         </div>
-
-        {/* Debug Info */}
-        {process.env.NODE_ENV === 'development' && (
-          <Card className="bg-yellow-50 border-yellow-200">
-            <CardContent className="py-4">
-              <p className="text-sm text-yellow-800">
-                Debug: Found {mentors.length} total mentors, {filteredMentors.length} after filters
-              </p>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Advanced Search and Filters */}
         <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
@@ -375,18 +379,6 @@ export const MentorDiscovery = () => {
                   <X className="h-4 w-4 mr-2" />
                   Clear All
                 </Button>
-                
-                <Button 
-                  variant="default" 
-                  onClick={() => {
-                    clearFilters();
-                    setSearchTerm('');
-                  }} 
-                  className="h-12 bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  <Users className="h-4 w-4 mr-2" />
-                  Show All Mentors
-                </Button>
               </div>
 
               {/* Advanced Filters */}
@@ -395,7 +387,7 @@ export const MentorDiscovery = () => {
                   {/* Price Range */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Price Range: ${priceRange[0]} - ${priceRange[1]}/hr
+                      Price Range: ${priceRange[0]} - ${priceRange[1]}
                     </label>
                     <Slider
                       value={priceRange}
@@ -473,7 +465,7 @@ export const MentorDiscovery = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Users className="h-6 w-6 text-blue-600" />
-            <h2 className="text-2xl font-bold text-gray-900">All Available Mentors</h2>
+            <h2 className="text-2xl font-bold text-gray-900">Available Mentors</h2>
           </div>
           <div className="flex items-center gap-4">
             <Badge variant="outline" className="text-sm">
@@ -498,7 +490,7 @@ export const MentorDiscovery = () => {
                   <p className="text-gray-600 mb-6">
                     {mentors.length === 0 
                       ? "We're working on adding more mentors to our platform. Please check back soon!"
-                      : `No mentors match your current search criteria. There are ${mentors.length} total mentors available. Try adjusting your filters or click "Show All Mentors" to see everyone.`
+                      : `No mentors match your current search criteria. There are ${mentors.length} total mentors available. Try adjusting your filters or click "Clear All" to see everyone.`
                     }
                   </p>
                   {mentors.length > 0 && (
@@ -507,18 +499,6 @@ export const MentorDiscovery = () => {
                       Clear All Filters
                     </Button>
                   )}
-                  <div className="mt-4 text-sm text-gray-500">
-                    <Button 
-                      variant="ghost" 
-                      onClick={() => {
-                        console.log('Reloading mentors...');
-                        loadMentors();
-                      }}
-                      className="text-blue-600 hover:text-blue-800"
-                    >
-                      Try reloading
-                    </Button>
-                  </div>
                 </div>
               </div>
             </CardContent>
@@ -526,58 +506,106 @@ export const MentorDiscovery = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredMentors.map(mentor => (
-              <div key={mentor.mentor_id} className="transform transition-transform hover:scale-105">
-                <MentorCard
-                  mentor={mentor}
-                  onBookSession={(mentorId) => setSelectedMentor(mentorId)}
-                />
-              </div>
+              <Card key={mentor.mentor_id} className="overflow-hidden hover:shadow-xl transition-all duration-300 bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+                <CardHeader className="relative pb-4">
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-50 opacity-50"></div>
+                  <div className="relative flex items-center space-x-4">
+                    <Avatar className="h-20 w-20">
+                      <AvatarImage src={mentor.users.profile_image} />
+                      <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-lg">
+                        {mentor.users.first_name[0]}{mentor.users.last_name[0]}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <h3 className="text-xl font-semibold text-gray-900">
+                        {mentor.users.first_name} {mentor.users.last_name}
+                      </h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center">
+                          <Star className="h-4 w-4 text-yellow-400 fill-current" />
+                          <span className="ml-1 text-sm font-medium">{mentor.rating.toFixed(1)}</span>
+                          <span className="ml-1 text-sm text-gray-500">({mentor.reviews_count} reviews)</span>
+                        </div>
+                        <div className={`flex items-center text-sm ${getAvailabilityStatus(mentor).color}`}>
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          {getAvailabilityStatus(mentor).text}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardHeader>
+                
+                <CardContent className="space-y-4">
+                  {/* Bio */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-gray-700 text-sm leading-relaxed">
+                      {mentor.users.bio || "Experienced professional with a passion for mentoring and helping others grow in their careers."}
+                    </p>
+                  </div>
+
+                  {/* Expertise */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">Expertise</span>
+                      <Badge variant="secondary" className="text-xs">
+                        {mentor.mentor_expertise.length} areas
+                      </Badge>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {mentor.mentor_expertise.slice(0, 3).map((expertise, index) => (
+                        <Badge key={index} variant="outline" className="text-xs">
+                          {expertise.expertise_areas.name}
+                        </Badge>
+                      ))}
+                      {mentor.mentor_expertise.length > 3 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{mentor.mentor_expertise.length - 3} more
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Quick Stats */}
+                  <div className="grid grid-cols-3 gap-4 pt-2">
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-blue-600">{mentor.experience_years}</div>
+                      <div className="text-xs text-gray-500">Years Exp.</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-green-600">{Math.floor(Math.random() * 50) + 20}%</div>
+                      <div className="text-xs text-gray-500">Success Rate</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-purple-600">{Math.floor(Math.random() * 12) + 2}h</div>
+                      <div className="text-xs text-gray-500">Response</div>
+                    </div>
+                  </div>
+
+                  {/* Price and Actions */}
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                    <div className="flex items-center">
+                      <DollarSign className="h-4 w-4 text-green-600 mr-1" />
+                      <span className="font-semibold text-green-600">${mentor.hourly_rate}/hr</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm">
+                        <MessageCircle className="h-4 w-4 mr-1" />
+                        Message
+                      </Button>
+                      <Button size="sm">
+                        <Calendar className="h-4 w-4 mr-1" />
+                        Book Session
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}
-
-        {/* Stats Section */}
-        {mentors.length > 0 && (
-          <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-            <CardContent className="py-8">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-center">
-                <div>
-                  <div className="text-3xl font-bold text-blue-600 mb-2">{mentors.length}</div>
-                  <div className="text-gray-600">Expert Mentors</div>
-                </div>
-                <div>
-                  <div className="text-3xl font-bold text-green-600 mb-2">
-                    {mentors.length > 0 ? Math.round(mentors.reduce((acc, m) => acc + m.rating, 0) / mentors.length * 10) / 10 : 0}
-                  </div>
-                  <div className="text-gray-600 flex items-center justify-center gap-1">
-                    <Star className="h-4 w-4 text-yellow-400" />
-                    Average Rating
-                  </div>
-                </div>
-                <div>
-                  <div className="text-3xl font-bold text-purple-600 mb-2">
-                    {expertiseAreas.length}+
-                  </div>
-                  <div className="text-gray-600">Expertise Areas</div>
-                </div>
-                <div>
-                  <div className="text-3xl font-bold text-orange-600 mb-2">
-                    {mentors.length > 0 ? Math.round(mentors.reduce((acc, m) => acc + m.experience_years, 0) / mentors.length) : 0}
-                  </div>
-                  <div className="text-gray-600">Avg. Experience</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Book Session Modal */}
-        <BookSessionModal
-          mentorId={selectedMentor}
-          isOpen={!!selectedMentor}
-          onClose={() => setSelectedMentor(null)}
-        />
       </div>
     </div>
   );
 };
+
+export default Mentors; 

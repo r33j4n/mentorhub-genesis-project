@@ -11,6 +11,8 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import MentorDashboard from "./pages/MentorDashboard";
 import MenteeDashboard from "./pages/MenteeDashboard";
+import Mentors from "./pages/Mentors";
+import MentorProfile from "./pages/MentorProfile";
 import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 
@@ -41,6 +43,8 @@ const App = () => (
                 <MenteeDashboard />
               </ProtectedRoute>
             } />
+            <Route path="/mentors" element={<Mentors />} />
+            <Route path="/mentor/:mentorId" element={<MentorProfile />} />
             <Route path="/admin" element={
               <ProtectedRoute>
                 <AdminDashboard />

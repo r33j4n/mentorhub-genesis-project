@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from '@/components/ui/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Users, User, Briefcase, Target, ArrowRight, CheckCircle } from 'lucide-react';
+import { Logo } from '@/components/ui/logo';
 
 interface ExpertiseArea {
   area_id: string;
@@ -55,6 +56,10 @@ export const ProfileSetup = () => {
     loadExpertiseAreas();
     loadUserProfile();
   }, [user]);
+
+  useEffect(() => {
+    console.log('ExpertiseAreas:', expertiseAreas);
+  }, [expertiseAreas]);
 
   const loadExpertiseAreas = async () => {
     const { data, error } = await supabase
@@ -197,7 +202,7 @@ export const ProfileSetup = () => {
 
       toast({
         title: "Profile created successfully!",
-        description: "Welcome to MentorHub"
+        description: "Welcome to MentorSES"
       });
 
       // Refresh the page to load the dashboard
@@ -221,9 +226,12 @@ export const ProfileSetup = () => {
             <div className="mx-auto w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center mb-4">
               <Users className="h-8 w-8 text-white" />
             </div>
-            <CardTitle className="text-2xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Welcome to MentorHub!
-            </CardTitle>
+                          <div className="flex justify-center mb-4">
+                <Logo size="lg" variant="gradient" />
+              </div>
+              <CardTitle className="text-2xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Welcome!
+              </CardTitle>
             <p className="text-gray-600 mt-2">
               Join our community of learners and mentors. Choose your path to get started.
             </p>
@@ -422,30 +430,34 @@ export const ProfileSetup = () => {
               </div>
               <div>
                 <Label>Expertise Areas</Label>
-                <div className="grid grid-cols-2 gap-2 mt-2">
-                  {expertiseAreas.map((area) => (
-                    <div key={area.area_id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={area.area_id}
-                        checked={mentorData.selectedExpertise.includes(area.area_id)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setMentorData(prev => ({
-                              ...prev,
-                              selectedExpertise: [...prev.selectedExpertise, area.area_id]
-                            }));
-                          } else {
-                            setMentorData(prev => ({
-                              ...prev,
-                              selectedExpertise: prev.selectedExpertise.filter(id => id !== area.area_id)
-                            }));
-                          }
-                        }}
-                      />
-                      <Label htmlFor={area.area_id} className="text-sm">{area.name}</Label>
-                    </div>
-                  ))}
-                </div>
+                {expertiseAreas.length === 0 ? (
+                  <div className="text-sm text-red-500 mt-2">No expertise areas found. Please contact support or add some in the admin panel.</div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    {expertiseAreas.map((area) => (
+                      <div key={area.area_id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={area.area_id}
+                          checked={mentorData.selectedExpertise.includes(area.area_id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setMentorData(prev => ({
+                                ...prev,
+                                selectedExpertise: [...prev.selectedExpertise, area.area_id]
+                              }));
+                            } else {
+                              setMentorData(prev => ({
+                                ...prev,
+                                selectedExpertise: prev.selectedExpertise.filter(id => id !== area.area_id)
+                              }));
+                            }
+                          }}
+                        />
+                        <Label htmlFor={area.area_id} className="text-sm">{area.name}</Label>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}

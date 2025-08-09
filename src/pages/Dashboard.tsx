@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { Navigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { ProfileSetup } from '@/components/ProfileSetup';
 import { MentorDiscovery } from '@/components/MentorDiscovery';
@@ -10,6 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Users, Calendar, Star, DollarSign, LogOut, Search, User } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
+import { Logo } from '@/components/ui/logo';
+import SessionDetailsModal from '@/components/SessionDetailsModal';
 
 interface UserProfile {
   user_id: string;
@@ -29,26 +32,94 @@ export default function Dashboard() {
   const [userRoles, setUserRoles] = useState<UserRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [sessions, setSessions] = useState([]);
+  const [selectedSession, setSelectedSession] = useState<any>(null);
+  const [showSessionDetails, setShowSessionDetails] = useState(false);
 
   useEffect(() => {
     if (user) {
+      // Add a timeout to prevent infinite loading
+      const timeoutId = setTimeout(() => {
+        if (loading) {
+          console.log('Loading timeout reached, forcing completion...');
+          setLoading(false);
+          toast({
+            title: "Loading timeout",
+            description: "Please refresh the page and try again.",
+            variant: "destructive"
+          });
+        }
+      }, 5000); // Reduced to 5 second timeout
+
       loadUserData();
+
+      return () => clearTimeout(timeoutId);
+    } else {
+      // If no user, set loading to false immediately
+      setLoading(false);
     }
-  }, [user]);
+  }, [user, loading]);
 
   const loadUserData = async () => {
     if (!user) return;
 
     try {
-      // Load user profile
-      const { data: profile, error: profileError } = await supabase
+      console.log('Loading user data for user:', user.id);
+      
+      // Load user profile with timeout
+      const profilePromise = supabase
         .from('users')
         .select('*')
         .eq('user_id', user.id)
         .single();
 
-      if (profileError) throw profileError;
-      setUserProfile(profile);
+      const result = await Promise.race([
+        profilePromise,
+        new Promise<{ data: any; error: any }>((_, reject) => 
+          setTimeout(() => reject(new Error('Profile load timeout')), 3000)
+        )
+      ]);
+
+      const { data: profile, error: profileError } = result;
+
+      console.log('Profile data:', { profile, profileError });
+
+      if (profileError) {
+        console.error('Profile error:', profileError);
+        // If profile doesn't exist, create it
+        if (profileError.code === 'PGRST116') {
+          console.log('Creating missing user profile...');
+          const { error: createProfileError } = await supabase
+            .from('users')
+            .insert({
+              user_id: user.id,
+              first_name: user.user_metadata?.first_name || 'User',
+              last_name: user.user_metadata?.last_name || 'Name',
+              email: user.email || '',
+              bio: '',
+              profile_image: ''
+            });
+
+          if (createProfileError) {
+            console.error('Error creating profile:', createProfileError);
+            throw createProfileError;
+          } else {
+            console.log('User profile created successfully');
+            // Reload the profile
+            const { data: newProfile, error: newProfileError } = await supabase
+              .from('users')
+              .select('*')
+              .eq('user_id', user.id)
+              .single();
+
+            if (newProfileError) throw newProfileError;
+            setUserProfile(newProfile);
+          }
+        } else {
+          throw profileError;
+        }
+      } else {
+        setUserProfile(profile);
+      }
 
       // Load user roles - filter to only include valid roles and map to UserRole type
       const { data: roles, error: rolesError } = await supabase
@@ -57,13 +128,38 @@ export default function Dashboard() {
         .eq('user_id', user.id)
         .in('role_type', ['mentor', 'mentee', 'admin']);
 
-      if (rolesError) throw rolesError;
+      console.log('Roles data:', { roles, rolesError });
+
+      if (rolesError) {
+        console.error('Roles error:', rolesError);
+        throw rolesError;
+      }
       
       // Filter and map to ensure only valid role types
       const validRoles: UserRole[] = (roles || [])
         .filter(role => ['mentor', 'mentee', 'admin'].includes(role.role_type))
         .map(role => ({ role_type: role.role_type as 'mentor' | 'mentee' | 'admin' }));
       
+      console.log('Valid roles:', validRoles);
+
+      // If no roles exist, create a default mentee role
+      if (validRoles.length === 0) {
+        console.log('No roles found, creating default mentee role...');
+        const { error: createRoleError } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: user.id,
+            role_type: 'mentee'
+          });
+
+        if (createRoleError) {
+          console.error('Error creating default role:', createRoleError);
+        } else {
+          console.log('Default mentee role created');
+          validRoles.push({ role_type: 'mentee' });
+        }
+      }
+
       setUserRoles(validRoles);
 
       // Load sessions
@@ -101,35 +197,65 @@ export default function Dashboard() {
     await signOut();
   };
 
+  const handleSessionClick = (session: any) => {
+    setSelectedSession(session);
+    setShowSessionDetails(true);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading your dashboard...</p>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-6"></div>
+          <h2 className="text-xl font-semibold text-gray-700 mb-2">Loading Dashboard...</h2>
+          <p className="text-gray-500 mb-4">Setting up your personalized experience</p>
+          <div className="flex space-x-2 justify-center">
+            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce"></div>
+            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+          </div>
         </div>
       </div>
     );
   }
 
+  // If no user, redirect to auth
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
   // If user has no profile or roles, show profile setup
   if (!userProfile || userRoles.length === 0) {
+    console.log('User has no profile or roles, showing profile setup...');
     return <ProfileSetup />;
   }
 
   const isMentor = userRoles.some(role => role.role_type === 'mentor');
   const isMentee = userRoles.some(role => role.role_type === 'mentee');
 
+  console.log('Role detection:', { isMentor, isMentee, userRoles });
+
+  // Redirect to role-specific dashboards
+  if (isMentee) {
+    console.log('Redirecting to mentee dashboard...');
+    return <Navigate to="/mentee-dashboard" replace />;
+  }
+  
+  if (isMentor) {
+    console.log('Redirecting to mentor dashboard...');
+    return <Navigate to="/mentor-dashboard" replace />;
+  }
+
+  console.log('No specific role detected, showing general dashboard...');
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-sm shadow-lg border-b border-white/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="px-4 py-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-6">
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                MentorHub
-              </h1>
+                          <div className="flex items-center space-x-6">
+                <Logo size="xl" variant="gradient" />
               <div className="flex space-x-2">
                 {userRoles.map((role) => (
                   <Badge key={role.role_type} variant="secondary" className="bg-blue-100 text-blue-800 px-3 py-1">
@@ -159,7 +285,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="px-4 py-8">
         <Tabs defaultValue={isMentee ? "discover" : "overview"} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4 bg-white/80 backdrop-blur-sm p-2 rounded-xl shadow-lg">
             <TabsTrigger value="overview" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white rounded-lg transition-all">
@@ -286,7 +412,11 @@ export default function Dashboard() {
                 ) : (
                   <div className="space-y-4">
                     {sessions.map((session: any) => (
-                      <div key={session.session_id} className="border rounded-lg p-4">
+                      <div 
+                        key={session.session_id} 
+                        className="border rounded-lg p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                        onClick={() => handleSessionClick(session)}
+                      >
                         <div className="flex items-start justify-between">
                           <div className="space-y-2">
                             <h3 className="font-semibold">{session.title}</h3>
@@ -354,6 +484,18 @@ export default function Dashboard() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Session Details Modal */}
+      {showSessionDetails && selectedSession && (
+        <SessionDetailsModal
+          session={selectedSession}
+          isOpen={showSessionDetails}
+          onClose={() => {
+            setShowSessionDetails(false);
+            setSelectedSession(null);
+          }}
+        />
+      )}
     </div>
   );
 }

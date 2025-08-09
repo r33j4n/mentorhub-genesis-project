@@ -66,11 +66,17 @@ export const AdminMentorsTable = ({ onStatsChange }: AdminMentorsTableProps) => 
       if (error) throw error;
       
       // Filter out mentors with invalid user data
-      const validMentors = (data || []).filter(mentor => {
-        if (!mentor.users || typeof mentor.users !== 'object' || 'error' in mentor.users) return false;
+      const validMentors = (data || []).reduce<Mentor[]>((acc, mentor) => {
+        if (!mentor.users || typeof mentor.users !== 'object' || 'error' in mentor.users!) return acc;
         const user = mentor.users as any;
-        return user.first_name && user.last_name && user.email;
-      }).map(mentor => ({ ...mentor, users: mentor.users as any })) as Mentor[];
+        if (!user?.first_name || !user?.last_name || !user?.email) return acc;
+        
+        acc.push({
+          ...mentor,
+          users: mentor.users! as unknown as { first_name: string; last_name: string; email: string; profile_image: string; }
+        });
+        return acc;
+      }, []);
       
       setMentors(validMentors);
     } catch (error: any) {
