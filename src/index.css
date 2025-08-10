@@ -6,89 +6,97 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 250 20% 98%;
+    --foreground: 250 20% 10%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 250 20% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 250 20% 10%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Primary: Dark purple for sophistication and creativity */
+    --primary: 250 50% 40%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Secondary: Warm yellow for energy and optimism */
+    --secondary: 45 100% 95%;
+    --secondary-foreground: 250 20% 10%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Muted: Soft purple-gray for subtle elements */
+    --muted: 250 15% 96%;
+    --muted-foreground: 250 10% 40%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Accent: Bright yellow for highlights and calls-to-action */
+    --accent: 45 100% 97%;
+    --accent-foreground: 250 50% 30%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Destructive: Professional red */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* Border and input: Purple-tinted lines */
+    --border: 250 15% 90%;
+    --input: 250 15% 90%;
+    --ring: 250 50% 40%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Sidebar: Dark purple theme */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 250 20% 10%;
+    --sidebar-primary: 250 50% 40%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 45 100% 97%;
+    --sidebar-accent-foreground: 250 50% 30%;
+    --sidebar-border: 250 15% 90%;
+    --sidebar-ring: 250 50% 40%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 250 20% 10%;
+    --foreground: 250 15% 95%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 250 20% 15%;
+    --card-foreground: 250 15% 95%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 250 20% 15%;
+    --popover-foreground: 250 15% 95%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    /* Dark mode primary: Brighter purple for contrast */
+    --primary: 250 60% 60%;
+    --primary-foreground: 250 20% 10%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    /* Dark mode secondary: Darker yellow */
+    --secondary: 45 30% 20%;
+    --secondary-foreground: 45 100% 90%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    /* Dark mode muted: Dark purple-gray */
+    --muted: 250 20% 20%;
+    --muted-foreground: 250 10% 70%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    /* Dark mode accent: Dark yellow */
+    --accent: 45 30% 15%;
+    --accent-foreground: 45 100% 85%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    /* Dark mode destructive: Softer red */
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Dark mode borders */
+    --border: 250 20% 25%;
+    --input: 250 20% 25%;
+    --ring: 250 60% 60%;
+
+    /* Dark mode sidebar */
+    --sidebar-background: 250 20% 10%;
+    --sidebar-foreground: 250 15% 95%;
+    --sidebar-primary: 250 60% 60%;
+    --sidebar-primary-foreground: 250 20% 10%;
+    --sidebar-accent: 45 30% 15%;
+    --sidebar-accent-foreground: 45 100% 85%;
+    --sidebar-border: 250 20% 25%;
+    --sidebar-ring: 250 60% 60%;
   }
 }
 
@@ -99,6 +107,145 @@
 
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer components {
+  /* Custom gradient backgrounds */
+  .bg-gradient-primary {
+    background: linear-gradient(135deg, hsl(250 50% 40%) 0%, hsl(250 50% 30%) 100%);
+  }
+  
+  .bg-gradient-secondary {
+    background: linear-gradient(135deg, hsl(45 100% 97%) 0%, hsl(45 100% 95%) 100%);
+  }
+  
+  .bg-gradient-card {
+    background: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(250 20% 98%) 100%);
+  }
+  
+  /* Custom button styles */
+  .btn-primary-gradient {
+    background: linear-gradient(135deg, hsl(250 50% 40%) 0%, hsl(250 50% 30%) 100%);
+    color: white;
+    transition: all 0.2s ease;
+  }
+  
+  .btn-primary-gradient:hover {
+    background: linear-gradient(135deg, hsl(250 50% 30%) 0%, hsl(250 50% 20%) 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(147, 51, 234, 0.3);
+  }
+  
+  /* Custom card styles */
+  .card-elevated {
+    background: hsl(0 0% 100%);
+    border: 1px solid hsl(250 15% 90%);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+    transition: all 0.2s ease;
+  }
+  
+  .card-elevated:hover {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06);
+    transform: translateY(-1px);
+  }
+  
+  /* Custom text gradients */
+  .text-gradient-primary {
+    background: linear-gradient(135deg, hsl(250 50% 40%) 0%, hsl(250 50% 30%) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  /* Custom border styles */
+  .border-gradient {
+    border: 1px solid;
+    border-image: linear-gradient(135deg, hsl(250 50% 40%), hsl(45 100% 50%)) 1;
+  }
+  
+  /* Custom focus styles */
+  .focus-ring-primary:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.1);
+  }
+  
+  /* Custom loading states */
+  .loading-shimmer {
+    background: linear-gradient(90deg, 
+      hsl(250 15% 96%) 0%, 
+      hsl(0 0% 100%) 50%, 
+      hsl(250 15% 96%) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+  
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  
+  /* Custom badge styles */
+  .badge-success {
+    background: linear-gradient(135deg, hsl(142 76% 36%) 0%, hsl(142 76% 26%) 100%);
+    color: white;
+  }
+  
+  .badge-warning {
+    background: linear-gradient(135deg, hsl(45 100% 60%) 0%, hsl(45 100% 50%) 100%);
+    color: hsl(45 100% 10%);
+  }
+  
+  .badge-info {
+    background: linear-gradient(135deg, hsl(250 50% 40%) 0%, hsl(250 50% 30%) 100%);
+    color: white;
+  }
+  
+  /* Purple theme enhancements */
+  .bg-purple-gradient {
+    background: linear-gradient(135deg, hsl(250 50% 40%) 0%, hsl(250 50% 30%) 100%);
+  }
+  
+  .bg-purple-light {
+    background: hsl(250 15% 96%);
+  }
+  
+  .text-purple-primary {
+    color: hsl(250 50% 40%);
+  }
+  
+  .border-purple-accent {
+    border-color: hsl(250 50% 40%);
+  }
+  
+  /* Yellow theme enhancements */
+  .bg-yellow-gradient {
+    background: linear-gradient(135deg, hsl(45 100% 60%) 0%, hsl(45 100% 50%) 100%);
+  }
+  
+  .bg-yellow-light {
+    background: hsl(45 100% 97%);
+  }
+  
+  .text-yellow-primary {
+    color: hsl(45 100% 50%);
+  }
+  
+  .border-yellow-accent {
+    border-color: hsl(45 100% 50%);
+  }
+  
+  /* Purple and yellow combination styles */
+  .bg-purple-yellow-gradient {
+    background: linear-gradient(135deg, hsl(250 50% 40%) 0%, hsl(45 100% 60%) 100%);
+  }
+  
+  .text-purple-yellow-gradient {
+    background: linear-gradient(135deg, hsl(250 50% 40%) 0%, hsl(45 100% 50%) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 }
 

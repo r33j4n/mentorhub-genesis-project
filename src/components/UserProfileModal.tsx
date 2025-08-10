@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/components/ui/use-toast';
-import { X, Upload, Save, Clock, Calendar, Plus, Trash2, Star } from 'lucide-react';
+import { X, Upload, Save, Clock, Calendar, Plus, Trash2, Star, Heart, HeartOff, Users } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -42,6 +42,20 @@ interface MentorExpertise {
   proficiency_level: 'beginner' | 'intermediate' | 'advanced' | 'expert';
   years_experience: number | null;
   area_name?: string; // For display purposes
+}
+
+interface FollowedMentor {
+  id: string;
+  mentor_id: string;
+  created_at: string;
+  mentor: {
+    users: {
+      first_name: string;
+      last_name: string;
+      profile_image: string;
+      bio: string;
+    };
+  };
 }
 
 interface UserProfileModalProps {
@@ -102,6 +116,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const [customExpertise, setCustomExpertise] = useState<string>('');
   const [showCustomExpertise, setShowCustomExpertise] = useState(false);
   const [isEditingAvailability, setIsEditingAvailability] = useState(false);
+  const [followedMentors, setFollowedMentors] = useState<FollowedMentor[]>([]);
 
   useEffect(() => {
     loadProfile();
@@ -109,6 +124,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       loadAvailability();
       loadExpertiseAreas();
       loadMentorExpertise();
+    } else if (userType === 'mentee') {
+      loadFollowedMentors();
     }
   }, [userType]);
 
@@ -215,6 +232,34 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       setMentorExpertise(expertiseWithNames);
     } catch (error: any) {
       console.error('Error loading mentor expertise:', error);
+    }
+  };
+
+  const loadFollowedMentors = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('mentor_follows')
+        .select(`
+          *,
+          mentor:mentor_id (
+            users:mentors_mentor_id_fkey (
+              first_name,
+              last_name,
+              profile_image,
+              bio
+            )
+          )
+        `)
+        .eq('mentee_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setFollowedMentors(data || []);
+    } catch (error: any) {
+      console.error('Error loading followed mentors:', error);
     }
   };
 
@@ -537,6 +582,109 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               rows={4}
             />
           </div>
+
+          {/* Followed Mentors Section for Mentees */}
+          {userType === 'mentee' && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-purple-600" />
+                <h3 className="text-lg font-semibold">Followed Mentors</h3>
+                <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+                  {followedMentors.length}
+                </Badge>
+              </div>
+
+              {followedMentors.length === 0 ? (
+                <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+                  <Heart className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600 mb-2">You haven't followed any mentors yet</p>
+                  <p className="text-sm text-gray-500">Follow mentors to see their public seminars and get notified of new content</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {followedMentors.map((followedMentor) => (
+                    <div key={followedMentor.id} className="flex items-center gap-4 p-4 border rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={followedMentor.mentor.users.profile_image} />
+                        <AvatarFallback className="text-sm">
+                          {followedMentor.mentor.users.first_name?.[0]}{followedMentor.mentor.users.last_name?.[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-medium text-gray-900 truncate">
+                            {followedMentor.mentor.users.first_name} {followedMentor.mentor.users.last_name}
+                          </h4>
+                          <Heart className="h-4 w-4 text-red-500" />
+                        </div>
+                        {followedMentor.mentor.users.bio && (
+                          <p className="text-sm text-gray-600 line-clamp-2">
+                            {followedMentor.mentor.users.bio}
+                          </p>
+                        )}
+                        <p className="text-xs text-gray-500 mt-1">
+                          Following since {new Date(followedMentor.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={async () => {
+                          try {
+                            const { data: { user } } = await supabase.auth.getUser();
+                            if (!user) {
+                              toast({
+                                title: "Error",
+                                description: "You must be logged in to unfollow mentors",
+                                variant: "destructive"
+                              });
+                              return;
+                            }
+
+                            console.log('Unfollowing mentor:', followedMentor.mentor_id);
+                            console.log('Current user ID:', user.id);
+
+                            const { error } = await supabase
+                              .from('mentor_follows')
+                              .delete()
+                              .eq('mentor_id', followedMentor.mentor_id)
+                              .eq('mentee_id', user.id);
+
+                            console.log('Unfollow result:', { error });
+
+                            if (error) {
+                              throw error;
+                            }
+
+                            // Update local state
+                            setFollowedMentors(prev => prev.filter(fm => fm.id !== followedMentor.id));
+                            
+                            toast({
+                              title: "Unfollowed",
+                              description: `You've unfollowed ${followedMentor.mentor.users.first_name} ${followedMentor.mentor.users.last_name}`,
+                            });
+                          } catch (error: any) {
+                            console.error('Error unfollowing mentor:', error);
+                            toast({
+                              title: "Error",
+                              description: `Failed to unfollow mentor: ${error.message}`,
+                              variant: "destructive"
+                            });
+                          }
+                        }}
+                        className="text-red-600 hover:text-red-700 border-red-300 hover:border-red-400"
+                      >
+                        <HeartOff className="h-4 w-4 mr-2" />
+                        Unfollow
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Expertise Areas Section for Mentors */}
           {userType === 'mentor' && (

@@ -288,21 +288,21 @@ export default function Dashboard() {
       <div className="px-4 py-8">
         <Tabs defaultValue={isMentee ? "discover" : "overview"} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4 bg-white/80 backdrop-blur-sm p-2 rounded-xl shadow-lg">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white rounded-lg transition-all">
+                            <TabsTrigger value="overview" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white rounded-lg transition-all">
               <Calendar className="h-4 w-4 mr-2" />
               Overview
             </TabsTrigger>
             {isMentee && (
-              <TabsTrigger value="discover" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white rounded-lg transition-all">
+                              <TabsTrigger value="discover" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white rounded-lg transition-all">
                 <Search className="h-4 w-4 mr-2" />
                 Find Mentors
               </TabsTrigger>
             )}
-            <TabsTrigger value="sessions" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white rounded-lg transition-all">
+                            <TabsTrigger value="sessions" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white rounded-lg transition-all">
               <Users className="h-4 w-4 mr-2" />
               Sessions
             </TabsTrigger>
-            <TabsTrigger value="profile" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white rounded-lg transition-all">
+                            <TabsTrigger value="profile" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white rounded-lg transition-all">
               <User className="h-4 w-4 mr-2" />
               Profile
             </TabsTrigger>

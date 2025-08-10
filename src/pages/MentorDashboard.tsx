@@ -7,7 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Users, Calendar, Star, DollarSign, LogOut, TrendingUp, Clock, Video, MessageCircle } from 'lucide-react';
+import { Users, Calendar, Star, DollarSign, LogOut, TrendingUp, Clock, Video, MessageCircle, BookOpen } from 'lucide-react';
+import { ManageSeminarsList } from '@/components/ManageSeminarsList';
+
 import { toast } from '@/components/ui/use-toast';
 import { UserProfileModal } from '@/components/UserProfileModal';
 import { Logo } from '@/components/ui/logo';
@@ -548,6 +550,10 @@ export default function MentorDashboard() {
                     <Users className="h-4 w-4 mr-2" />
                     Requests
                   </TabsTrigger>
+                  <TabsTrigger value="seminars" className="data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm rounded-md transition-all px-4 py-2">
+                    <BookOpen className="h-4 w-4 mr-2" />
+                    Public Seminars
+                  </TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
@@ -656,7 +662,7 @@ export default function MentorDashboard() {
                   <CardTitle className="text-lg font-semibold text-gray-900">Quick Actions</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <Button className="w-full justify-start bg-blue-600 hover:bg-blue-700 text-white">
+                  <Button className="w-full justify-start bg-purple-600 hover:bg-purple-700 text-white">
                     <Calendar className="h-4 w-4 mr-2" />
                     Set Your Availability
                   </Button>
@@ -715,7 +721,7 @@ export default function MentorDashboard() {
                 <h2 className="text-2xl font-bold text-gray-900">Sessions</h2>
                 <p className="text-gray-600">Manage your upcoming and completed sessions</p>
               </div>
-              <Button className="bg-blue-600 hover:bg-blue-700">
+                              <Button className="bg-purple-600 hover:bg-purple-700">
                 <Calendar className="h-4 w-4 mr-2" />
                 Schedule Session
               </Button>
@@ -769,7 +775,7 @@ export default function MentorDashboard() {
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+                          <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
                             <Video className="h-4 w-4 mr-2" />
                             Join Session
                           </Button>
@@ -784,6 +790,12 @@ export default function MentorDashboard() {
                 )}
               </CardContent>
             </Card>
+          </div>
+        )}
+
+        {activeTab === "seminars" && (
+          <div className="space-y-6">
+            <ManageSeminarsList className="card-elevated" />
           </div>
         )}
 

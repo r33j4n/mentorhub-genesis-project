@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
-import { Users, Calendar, Search, LogOut, BookOpen, Target, TrendingUp, Star, Clock, DollarSign, ArrowUpRight, MessageCircle, CheckCircle, Video, XCircle, Eye } from 'lucide-react';
+import { Users, Calendar, Search, LogOut, BookOpen, Target, TrendingUp, Star, Clock, DollarSign, ArrowUpRight, MessageCircle, CheckCircle, Video, XCircle, Eye, BookOpen as BookOpenIcon } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { MentorDiscovery } from '@/components/MentorDiscovery';
 import { UserProfileModal } from '@/components/UserProfileModal';
@@ -19,6 +19,8 @@ import { Logo } from '@/components/ui/logo';
 import { NotificationBell } from '@/components/NotificationBell';
 import { MentorProfileModal } from '@/components/MentorProfileModal';
 import SessionDetailsModal from '@/components/SessionDetailsModal';
+import { PublicSeminarsList } from '@/components/PublicSeminarsList';
+
 
 interface UserProfile {
   user_id: string;
@@ -60,6 +62,7 @@ interface MenteeStats {
   totalSpent: number;
   averageRating: number;
   upcomingSessions: number;
+  pendingSessions: number;
 }
 
 export default function MenteeDashboard() {
@@ -74,7 +77,8 @@ export default function MenteeDashboard() {
     goalProgress: 0,
     totalSpent: 0,
     averageRating: 0,
-    upcomingSessions: 0
+    upcomingSessions: 0,
+    pendingSessions: 0
   });
   const [sessions, setSessions] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
@@ -84,6 +88,7 @@ export default function MenteeDashboard() {
   const [loadingMentors, setLoadingMentors] = useState(false);
   const [acceptedSessions, setAcceptedSessions] = useState([]);
   const [rejectedSessions, setRejectedSessions] = useState([]);
+  const [pendingSessions, setPendingSessions] = useState([]);
   const [loadingSessions, setLoadingSessions] = useState(false);
   const [selectedSession, setSelectedSession] = useState<any>(null);
   const [isZoomMeetingOpen, setIsZoomMeetingOpen] = useState(false);
@@ -194,7 +199,8 @@ export default function MenteeDashboard() {
         goalProgress: 0,
         totalSpent: 0,
         averageRating: 0,
-        upcomingSessions: 0
+        upcomingSessions: 0,
+        pendingSessions: 0
       });
 
       // Load sessions (simplified query)
@@ -260,7 +266,7 @@ export default function MenteeDashboard() {
         const completedSessions = sessionsData.filter(s => s.status === 'completed').length;
         const uniqueMentors = new Set(sessionsData.map(s => s.mentor_id)).size;
         const totalSpent = sessionsData.reduce((acc, s) => acc + (s.final_price || 0), 0);
-        const upcomingSessions = sessionsData.filter(s => s.status === 'confirmed' && new Date(s.scheduled_start) > new Date()).length;
+        const upcomingSessions = sessionsData.filter(s => (s.status === 'confirmed' || s.status === 'requested') && new Date(s.scheduled_start) > new Date()).length;
         
         setStats({
           totalSessions,
@@ -269,7 +275,8 @@ export default function MenteeDashboard() {
           goalProgress: totalSessions > 0 ? (completedSessions / totalSessions) * 100 : 0,
           totalSpent,
           averageRating: 4.5, // Mock rating
-          upcomingSessions
+          upcomingSessions,
+          pendingSessions: sessionsData.filter(s => s.status === 'requested').length
         });
 
         // Set recent activity (same as sessions for now)
@@ -361,6 +368,35 @@ export default function MenteeDashboard() {
       if (acceptedError) throw acceptedError;
       setAcceptedSessions(acceptedData || []);
 
+      // Load pending sessions
+      const { data: pendingData, error: pendingError } = await supabase
+        .from('sessions')
+        .select(`
+          session_id,
+          title,
+          description,
+          scheduled_start,
+          scheduled_end,
+          duration_minutes,
+          final_price,
+          status,
+          mentor_id,
+          mentors:mentor_id (
+            users:mentors_mentor_id_fkey (
+              first_name,
+              last_name,
+              email,
+              profile_image
+            )
+          )
+        `)
+        .eq('mentee_id', user?.id)
+        .eq('status', 'requested')
+        .order('scheduled_start', { ascending: false });
+
+      if (pendingError) throw pendingError;
+      setPendingSessions(pendingData || []);
+
       // Load rejected/cancelled sessions
       const { data: rejectedData, error: rejectedError } = await supabase
         .from('sessions')
@@ -389,6 +425,26 @@ export default function MenteeDashboard() {
 
       if (rejectedError) throw rejectedError;
       setRejectedSessions(rejectedData || []);
+
+      // Update stats with the new session data
+      const allSessions = [...(acceptedData || []), ...(pendingData || []), ...(rejectedData || [])];
+      const totalSessions = allSessions.length;
+      const completedSessions = allSessions.filter(s => s.status === 'completed').length;
+      const uniqueMentors = new Set(allSessions.map(s => s.mentor_id)).size;
+      const totalSpent = allSessions.reduce((acc, s) => acc + (s.final_price || 0), 0);
+      const upcomingSessions = allSessions.filter(s => (s.status === 'confirmed' || s.status === 'requested') && new Date(s.scheduled_start) > new Date()).length;
+      const pendingSessions = allSessions.filter(s => s.status === 'requested').length;
+
+      setStats(prev => ({
+        ...prev,
+        totalSessions,
+        completedSessions,
+        activeMentors: uniqueMentors,
+        goalProgress: totalSessions > 0 ? (completedSessions / totalSessions) * 100 : 0,
+        totalSpent,
+        upcomingSessions,
+        pendingSessions
+      }));
 
     } catch (error: any) {
       console.error('Error loading sessions:', error);
@@ -419,7 +475,7 @@ export default function MenteeDashboard() {
   const handleSessionEnd = () => {
     setIsZoomMeetingOpen(false);
     setSelectedSession(null);
-    // Refresh sessions
+    // Refresh sessions and stats
     loadMenteeSessions();
   };
 
@@ -428,7 +484,7 @@ export default function MenteeDashboard() {
     if (tab === "find-mentors" && mentors.length === 0) {
       loadMentors();
     }
-    if (tab === "sessions" && acceptedSessions.length === 0 && rejectedSessions.length === 0) {
+    if (tab === "sessions" && acceptedSessions.length === 0 && rejectedSessions.length === 0 && pendingSessions.length === 0) {
       loadMenteeSessions();
     }
   };
@@ -442,7 +498,7 @@ export default function MenteeDashboard() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading mentee dashboard...</p>
         </div>
       </div>
@@ -476,7 +532,7 @@ export default function MenteeDashboard() {
                 variant={activeTab === "overview" ? "default" : "outline"} 
                 size="sm" 
                 onClick={() => handleTabChange("overview")}
-                className={activeTab === "overview" ? "bg-blue-600 text-white" : "hover:bg-blue-50"}
+                className={activeTab === "overview" ? "bg-purple-600 text-white" : "hover:bg-purple-50"}
               >
                 <TrendingUp className="h-4 w-4 mr-2" />
                 Overview
@@ -485,7 +541,7 @@ export default function MenteeDashboard() {
                 variant={activeTab === "find-mentors" ? "default" : "outline"} 
                 size="sm" 
                 onClick={() => handleTabChange("find-mentors")}
-                className={activeTab === "find-mentors" ? "bg-blue-600 text-white" : "hover:bg-blue-50"}
+                className={activeTab === "find-mentors" ? "bg-purple-600 text-white" : "hover:bg-purple-50"}
               >
                 <Search className="h-4 w-4 mr-2" />
                 Find Mentors
@@ -494,10 +550,19 @@ export default function MenteeDashboard() {
                 variant={activeTab === "sessions" ? "default" : "outline"} 
                 size="sm" 
                 onClick={() => handleTabChange("sessions")}
-                className={activeTab === "sessions" ? "bg-blue-600 text-white" : "hover:bg-blue-50"}
+                className={activeTab === "sessions" ? "bg-purple-600 text-white" : "hover:bg-purple-50"}
               >
                 <Calendar className="h-4 w-4 mr-2" />
                 Sessions
+              </Button>
+              <Button 
+                variant={activeTab === "seminars" ? "default" : "outline"} 
+                size="sm" 
+                onClick={() => handleTabChange("seminars")}
+                className={activeTab === "seminars" ? "bg-purple-600 text-white" : "hover:bg-purple-50"}
+              >
+                <BookOpenIcon className="h-4 w-4 mr-2" />
+                Public Seminars
               </Button>
             </div>
             
@@ -531,43 +596,43 @@ export default function MenteeDashboard() {
         {activeTab === "overview" && (
           <div className="space-y-6">
             {/* Welcome Section */}
-            <Card className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white border-0 shadow-lg">
+            <Card className="bg-gradient-primary text-white border-0 shadow-lg">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-2xl font-bold mb-2">Welcome back, {userProfile?.first_name}!</h2>
-                    <p className="text-blue-100">Ready to continue your learning journey?</p>
+                    <p className="text-purple-100">Ready to continue your learning journey?</p>
                   </div>
                   <div className="text-right">
                     <div className="text-3xl font-bold">{stats.upcomingSessions}</div>
-                    <div className="text-blue-200 text-sm">Upcoming sessions</div>
+                    <div className="text-purple-100 text-sm">Upcoming sessions</div>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-shadow">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+              <Card className="card-elevated">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total Sessions</CardTitle>
-                  <Calendar className="h-4 w-4 text-blue-600" />
+                  <Calendar className="h-4 w-4 text-purple-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-gray-900">{stats.totalSessions}</div>
+                  <div className="text-2xl font-bold text-foreground">{stats.totalSessions}</div>
                   <p className="text-xs text-muted-foreground">
                     +{Math.floor(Math.random() * 5) + 1} from last month
                   </p>
                 </CardContent>
               </Card>
               
-              <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <Card className="card-elevated">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Completed Sessions</CardTitle>
                   <BookOpen className="h-4 w-4 text-green-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-gray-900">{stats.completedSessions}</div>
+                  <div className="text-2xl font-bold text-foreground">{stats.completedSessions}</div>
                   <div className="flex items-center text-xs text-muted-foreground">
                     <ArrowUpRight className="h-3 w-3 mr-1 text-green-600" />
                     {stats.totalSessions > 0 ? Math.round((stats.completedSessions / stats.totalSessions) * 100) : 0}% completion rate
@@ -575,28 +640,41 @@ export default function MenteeDashboard() {
                 </CardContent>
               </Card>
               
-              <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <Card className="card-elevated">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Active Mentors</CardTitle>
                   <Users className="h-4 w-4 text-purple-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-gray-900">{stats.activeMentors}</div>
+                  <div className="text-2xl font-bold text-foreground">{stats.activeMentors}</div>
                   <p className="text-xs text-muted-foreground">
                     Currently working with
                   </p>
                 </CardContent>
               </Card>
               
-              <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <Card className="card-elevated">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total Spent</CardTitle>
-                  <DollarSign className="h-4 w-4 text-orange-600" />
+                  <DollarSign className="h-4 w-4 text-green-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-gray-900">${stats.totalSpent}</div>
+                  <div className="text-2xl font-bold text-foreground">${stats.totalSpent}</div>
                   <p className="text-xs text-muted-foreground">
                     Investment in your growth
+                  </p>
+                </CardContent>
+              </Card>
+              
+              <Card className="card-elevated">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Pending Sessions</CardTitle>
+                  <MessageCircle className="h-4 w-4 text-yellow-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-foreground">{stats.pendingSessions}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Awaiting mentor approval
                   </p>
                 </CardContent>
               </Card>
@@ -854,7 +932,7 @@ export default function MenteeDashboard() {
                         </div>
                       ) : (
                         mentors.map((mentor) => (
-                          <Card key={mentor.mentor_id} className="bg-white border border-gray-200 hover:border-blue-300 transition-all duration-300 hover:shadow-lg">
+                          <Card key={mentor.mentor_id} className="bg-white border border-gray-200 hover:border-purple-300 transition-all duration-300 hover:shadow-lg">
                             <CardContent className="p-6">
                               <div className="flex items-start space-x-4">
                                 {/* Mentor Avatar */}
@@ -943,7 +1021,7 @@ export default function MenteeDashboard() {
                                       <Button 
                                         size="sm" 
                                         variant="outline" 
-                                        className="border-blue-200 text-blue-600 hover:bg-blue-50"
+                                        className="border-purple-200 text-purple-600 hover:bg-purple-50"
                                         onClick={() => {
                                           setSelectedMentor(mentor);
                                           setShowMentorProfileModal(true);
@@ -969,18 +1047,35 @@ export default function MenteeDashboard() {
           </div>
         )}
 
+                {activeTab === "seminars" && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <PublicSeminarsList
+                showFollowedOnly={true}
+                title="Seminars from Followed Mentors"
+                className="card-elevated"
+              />
+              <PublicSeminarsList
+                showFollowedOnly={false}
+                title="All Public Seminars"
+                className="card-elevated"
+              />
+            </div>
+          </div>
+        )}
+
         {activeTab === "sessions" && (
           <div className="space-y-6">
             {/* Sessions Header */}
-            <Card className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white border-0 shadow-lg">
+            <Card className="bg-gradient-primary text-white border-0 shadow-lg">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-2xl font-bold mb-2">Your Sessions</h2>
-                    <p className="text-blue-100">Track your accepted and rejected session requests</p>
+                    <p className="text-blue-100">Track your accepted, pending, and rejected session requests</p>
                   </div>
                   <div className="text-right">
-                    <div className="text-3xl font-bold">{acceptedSessions.length + rejectedSessions.length}</div>
+                    <div className="text-3xl font-bold">{acceptedSessions.length + rejectedSessions.length + pendingSessions.length}</div>
                     <div className="text-blue-200 text-sm">Total sessions</div>
                   </div>
                 </div>
@@ -1001,11 +1096,11 @@ export default function MenteeDashboard() {
 
             {/* Sessions Content */}
             {!loadingSessions && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Accepted Sessions */}
-                <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+                <Card className="card-elevated">
                   <CardHeader>
-                    <CardTitle className="text-xl text-gray-900 flex items-center gap-2">
+                    <CardTitle className="text-xl text-foreground flex items-center gap-2">
                       <CheckCircle className="h-5 w-5 text-green-600" />
                       Accepted Sessions ({acceptedSessions.length})
                     </CardTitle>
@@ -1068,7 +1163,7 @@ export default function MenteeDashboard() {
                                 <div className="flex flex-col gap-2">
                                   <Button 
                                     size="sm" 
-                                    className="bg-blue-600 hover:bg-blue-700"
+                                    className="bg-purple-600 hover:bg-purple-700"
                                     onClick={() => handleJoinMeeting(session)}
                                   >
                                     <Video className="h-4 w-4 mr-1" />
@@ -1088,10 +1183,92 @@ export default function MenteeDashboard() {
                   </CardContent>
                 </Card>
 
-                {/* Rejected Sessions */}
+                {/* Pending Sessions */}
                 <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
                   <CardHeader>
                     <CardTitle className="text-xl text-gray-900 flex items-center gap-2">
+                      <MessageCircle className="h-5 w-5 text-yellow-600" />
+                      Pending Sessions ({pendingSessions.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {pendingSessions.length === 0 ? (
+                      <div className="text-center py-12">
+                        <MessageCircle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                        <p className="text-gray-600 font-medium">No pending session requests</p>
+                        <p className="text-sm text-gray-500 mt-1">Your pending session requests will appear here.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {pendingSessions.map((session: any) => (
+                          <Card 
+                            key={session.session_id} 
+                            className="border border-yellow-200 hover:border-yellow-300 transition-colors cursor-pointer"
+                            onClick={() => handleSessionClick(session)}
+                          >
+                            <CardContent className="p-4">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <h3 className="font-semibold text-gray-900">
+                                      {session.title || 'Mentoring Session'}
+                                    </h3>
+                                    <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
+                                      Pending
+                                    </Badge>
+                                  </div>
+                                  <p className="text-sm text-gray-600 mb-2">{session.description}</p>
+                                  <div className="flex items-center gap-4 text-sm text-gray-500">
+                                    <div className="flex items-center gap-1">
+                                      <Calendar className="h-4 w-4" />
+                                      {new Date(session.scheduled_start).toLocaleDateString()}
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <Clock className="h-4 w-4" />
+                                      {new Date(session.scheduled_start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <DollarSign className="h-4 w-4" />
+                                      ${session.final_price}
+                                    </div>
+                                  </div>
+                                  {session.mentors?.users && (
+                                    <div className="flex items-center gap-2 mt-2">
+                                      <Avatar className="h-6 w-6">
+                                        <AvatarImage src={session.mentors.users.profile_image} />
+                                        <AvatarFallback className="bg-blue-500 text-white text-xs">
+                                          {session.mentors.users.first_name?.[0]}{session.mentors.users.last_name?.[0]}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <span className="text-sm text-gray-600">
+                                        with {session.mentors.users.first_name} {session.mentors.users.last_name}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex flex-col gap-2">
+                                  <Button size="sm" variant="outline" className="border-gray-300">
+                                    <MessageCircle className="h-4 w-4 mr-1" />
+                                    Message
+                                  </Button>
+                                  <Button size="sm" variant="outline" className="border-purple-300 text-purple-600">
+                                    <BookOpen className="h-4 w-4 mr-1" />
+                                    Book Again
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Rejected Sessions */}
+                <Card className="card-elevated">
+                  <CardHeader>
+                    <CardTitle className="text-xl text-foreground flex items-center gap-2">
                       <XCircle className="h-5 w-5 text-red-600" />
                       Rejected Sessions ({rejectedSessions.length})
                     </CardTitle>
@@ -1120,6 +1297,88 @@ export default function MenteeDashboard() {
                                     </h3>
                                     <Badge variant="destructive" className="bg-red-100 text-red-800">
                                       Cancelled
+                                    </Badge>
+                                  </div>
+                                  <p className="text-sm text-gray-600 mb-2">{session.description}</p>
+                                  <div className="flex items-center gap-4 text-sm text-gray-500">
+                                    <div className="flex items-center gap-1">
+                                      <Calendar className="h-4 w-4" />
+                                      {new Date(session.scheduled_start).toLocaleDateString()}
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <Clock className="h-4 w-4" />
+                                      {new Date(session.scheduled_start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <DollarSign className="h-4 w-4" />
+                                      ${session.final_price}
+                                    </div>
+                                  </div>
+                                  {session.mentors?.users && (
+                                    <div className="flex items-center gap-2 mt-2">
+                                      <Avatar className="h-6 w-6">
+                                        <AvatarImage src={session.mentors.users.profile_image} />
+                                        <AvatarFallback className="bg-blue-500 text-white text-xs">
+                                          {session.mentors.users.first_name?.[0]}{session.mentors.users.last_name?.[0]}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <span className="text-sm text-gray-600">
+                                        with {session.mentors.users.first_name} {session.mentors.users.last_name}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex flex-col gap-2">
+                                  <Button size="sm" variant="outline" className="border-gray-300">
+                                    <MessageCircle className="h-4 w-4 mr-1" />
+                                    Message
+                                  </Button>
+                                  <Button size="sm" variant="outline" className="border-blue-300 text-blue-600">
+                                    <BookOpen className="h-4 w-4 mr-1" />
+                                    Book Again
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Pending Sessions */}
+                <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+                  <CardHeader>
+                    <CardTitle className="text-xl text-gray-900 flex items-center gap-2">
+                      <MessageCircle className="h-5 w-5 text-yellow-600" />
+                      Pending Sessions ({pendingSessions.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {pendingSessions.length === 0 ? (
+                      <div className="text-center py-12">
+                        <MessageCircle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                        <p className="text-gray-600 font-medium">No pending session requests</p>
+                        <p className="text-sm text-gray-500 mt-1">Your pending session requests will appear here.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {pendingSessions.map((session: any) => (
+                          <Card 
+                            key={session.session_id} 
+                            className="border border-yellow-200 hover:border-yellow-300 transition-colors cursor-pointer"
+                            onClick={() => handleSessionClick(session)}
+                          >
+                            <CardContent className="p-4">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <h3 className="font-semibold text-gray-900">
+                                      {session.title || 'Mentoring Session'}
+                                    </h3>
+                                    <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
+                                      Pending
                                     </Badge>
                                   </div>
                                   <p className="text-sm text-gray-600 mb-2">{session.description}</p>

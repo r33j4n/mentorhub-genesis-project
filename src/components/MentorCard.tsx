@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Star, MapPin, Clock, DollarSign, Award, MessageCircle, Calendar, CheckCircle, Eye } from 'lucide-react';
 import { MentorProfileModal } from './MentorProfileModal';
+import { FollowMentorButton } from './FollowMentorButton';
 
 interface MentorCardProps {
   mentor: {
@@ -215,6 +216,13 @@ export const MentorCard = ({ mentor, onBookSession }: MentorCardProps) => {
               Book Session
             </Button>
             <div className="flex gap-2">
+              <FollowMentorButton
+                mentorId={mentor.mentor_id}
+                mentorName={`${mentor.users.first_name} ${mentor.users.last_name}`}
+                variant="outline"
+                size="sm"
+                className="flex-1 sm:flex-none"
+              />
               <Button 
                 variant="outline" 
                 onClick={handleViewProfileClick}

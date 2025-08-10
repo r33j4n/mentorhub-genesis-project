@@ -197,7 +197,7 @@ export const MentorAvailabilityViewer = ({ mentor }: MentorAvailabilityViewerPro
         <Button 
           size="sm" 
           onClick={handleOpenDialog}
-          className="bg-blue-600 hover:bg-blue-700 text-white"
+                      className="bg-purple-600 hover:bg-purple-700 text-white"
         >
           <BookOpen className="h-4 w-4 mr-1" />
           Book Session
@@ -370,7 +370,7 @@ export const MentorAvailabilityViewer = ({ mentor }: MentorAvailabilityViewerPro
               <Button 
                 onClick={requestSession} 
                 disabled={requesting || !selectedDate || !selectedTime || !sessionTitle}
-                className="w-full bg-blue-600 hover:bg-blue-700"
+                className="w-full bg-purple-600 hover:bg-purple-700"
               >
                 {requesting ? (
                   <>
