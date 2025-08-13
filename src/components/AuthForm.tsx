@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from '@/components/ui/use-toast';
 import { Chrome, ArrowLeft } from 'lucide-react';
 
+
 interface AuthFormProps {
   mode: 'login' | 'signup';
 }
@@ -24,6 +25,7 @@ export const AuthForm = ({ mode }: AuthFormProps) => {
   const [showPasswordReset, setShowPasswordReset] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
+
   const navigate = useNavigate();
 
   const handleGoogleSignIn = async () => {
@@ -94,6 +96,7 @@ export const AuthForm = ({ mode }: AuthFormProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     setLoading(true);
 
     try {
@@ -105,10 +108,10 @@ export const AuthForm = ({ mode }: AuthFormProps) => {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/`,
+            emailRedirectTo: `${window.location.origin}/dashboard`,
             data: {
               first_name: firstName,
-              last_name: lastName
+              last_name: lastName,
             }
           }
         });
@@ -128,7 +131,6 @@ export const AuthForm = ({ mode }: AuthFormProps) => {
               first_name: firstName,
               last_name: lastName,
               email: email,
-              bio: '',
               profile_image: ''
             });
 
@@ -138,25 +140,15 @@ export const AuthForm = ({ mode }: AuthFormProps) => {
             console.log('User profile created successfully');
           }
 
-          // Create default mentee role
-          const { error: roleError } = await supabase
-            .from('user_roles')
-            .insert({
-              user_id: data.user.id,
-              role_type: 'mentee'
-            });
-
-          if (roleError) {
-            console.error('Error creating user role:', roleError);
-          } else {
-            console.log('User role created successfully');
-          }
+          // Don't create role or profile yet - let user choose in role selection modal
+          console.log('User account created successfully, role selection will be handled later');
         }
         
         toast({
           title: "Account created successfully!",
-          description: "Please check your email for verification."
+          description: "Please check your email for verification. After verification, you'll be asked to choose your role."
         });
+        navigate('/dashboard');
       } else {
         console.log('Attempting login...');
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -185,14 +177,13 @@ export const AuthForm = ({ mode }: AuthFormProps) => {
             console.log('Creating missing user profile...');
             const { error: createProfileError } = await supabase
               .from('users')
-              .insert({
-                user_id: data.user.id,
-                first_name: data.user.user_metadata?.first_name || 'User',
-                last_name: data.user.user_metadata?.last_name || 'Name',
-                email: data.user.email || '',
-                bio: '',
-                profile_image: ''
-              });
+                          .insert({
+              user_id: data.user.id,
+              first_name: data.user.user_metadata?.first_name || 'User',
+              last_name: data.user.user_metadata?.last_name || 'Name',
+              email: data.user.email || '',
+              profile_image: ''
+            });
 
             if (createProfileError) {
               console.error('Error creating profile:', createProfileError);
@@ -214,18 +205,20 @@ export const AuthForm = ({ mode }: AuthFormProps) => {
               .from('user_roles')
               .insert({
                 user_id: data.user.id,
-                role_type: 'mentee'
+                role: 'mentee'
               });
 
             if (createRoleError) {
-              console.error('Error creating role:', createRoleError);
-            } else {
-              console.log('Default mentee role created');
+              console.error('Error creating default role:', createRoleError);
             }
           }
         }
         
-        console.log('Login successful, navigating to dashboard...');
+        toast({
+          title: "Welcome back!",
+          description: "You've successfully signed in."
+        });
+        
         navigate('/dashboard');
       }
     } catch (error: any) {
@@ -309,6 +302,8 @@ export const AuthForm = ({ mode }: AuthFormProps) => {
     );
   }
 
+
+
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
@@ -369,6 +364,7 @@ export const AuthForm = ({ mode }: AuthFormProps) => {
               </div>
             </>
           )}
+          
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input

@@ -21,7 +21,7 @@ interface User {
   profile_image: string;
   is_active: boolean;
   user_roles: Array<{
-    role_type: string;
+    role: string;
   }>;
 }
 
@@ -56,7 +56,7 @@ export const EditUserModal = ({ user, isOpen, onClose, onUserUpdated }: EditUser
         profile_image: user.profile_image || '',
         is_active: user.is_active
       });
-      setSelectedRoles(user.user_roles.map(role => role.role_type as 'admin' | 'mentor' | 'mentee').filter(role => ROLE_OPTIONS.includes(role)));
+      setSelectedRoles(user.user_roles.map(role => role.role as 'admin' | 'mentor' | 'mentee').filter(role => ROLE_OPTIONS.includes(role)));
     }
   }, [user]);
 
@@ -94,7 +94,7 @@ export const EditUserModal = ({ user, isOpen, onClose, onUserUpdated }: EditUser
       if (selectedRoles.length > 0) {
         const rolesToInsert = selectedRoles.map(role => ({
           user_id: user.user_id,
-          role_type: role,
+          role: role,
           is_active: true
         }));
 

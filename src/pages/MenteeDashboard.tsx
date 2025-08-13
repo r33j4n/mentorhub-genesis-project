@@ -26,16 +26,14 @@ interface UserProfile {
   user_id: string;
   first_name: string;
   last_name: string;
-  bio: string;
   profile_image: string;
 }
 
 interface Mentor {
   mentor_id: string;
   hourly_rate: number;
-  experience_years: number;
   rating: number;
-  reviews_count: number;
+  total_sessions: number;
   is_approved: boolean;
   created_at: string;
   users: {
@@ -43,13 +41,11 @@ interface Mentor {
     last_name: string;
     email: string;
     profile_image: string;
-    bio: string;
-    timezone: string;
   } | null;
   mentor_expertise: Array<{
     expertise_areas: {
       name: string;
-      category: string;
+      description: string;
     };
   }>;
 }
@@ -92,7 +88,7 @@ export default function MenteeDashboard() {
   const [loadingSessions, setLoadingSessions] = useState(false);
   const [selectedSession, setSelectedSession] = useState<any>(null);
   const [isZoomMeetingOpen, setIsZoomMeetingOpen] = useState(false);
-  const [expertiseAreas, setExpertiseAreas] = useState<Array<{area_id: string, name: string, category: string}>>([]);
+  const [expertiseAreas, setExpertiseAreas] = useState<Array<{id: string, name: string, description: string}>>([]);
   const [showMentorProfileModal, setShowMentorProfileModal] = useState(false);
   const [selectedMentor, setSelectedMentor] = useState<Mentor | null>(null);
   const [showSessionDetails, setShowSessionDetails] = useState(false);
@@ -158,7 +154,7 @@ export default function MenteeDashboard() {
       // Load user profile (simplified)
       const { data: profile, error: profileError } = await supabase
         .from('users')
-        .select('user_id, first_name, last_name, profile_image, bio')
+        .select('user_id, first_name, last_name, profile_image')
         .eq('user_id', user.id)
         .single();
 
@@ -174,8 +170,7 @@ export default function MenteeDashboard() {
             first_name: 'Mentee',
             last_name: 'User',
             email: user.email || 'mentee@example.com',
-            profile_image: '',
-            bio: ''
+            profile_image: ''
           });
         
         if (!createProfileError) {
@@ -183,8 +178,7 @@ export default function MenteeDashboard() {
             user_id: user.id,
             first_name: 'Mentee',
             last_name: 'User',
-            profile_image: '',
-            bio: ''
+            profile_image: ''
           });
         }
       } else {
@@ -223,8 +217,7 @@ export default function MenteeDashboard() {
       const { data, error } = await supabase
         .from('expertise_areas')
         .select('*')
-        .eq('is_active', true)
-        .order('category', { ascending: true });
+        .order('name', { ascending: true });
 
       if (error) {
         console.error('Error loading expertise areas:', error);
@@ -294,18 +287,16 @@ export default function MenteeDashboard() {
         .from('mentors')
         .select(`
           *,
-          users:mentors_mentor_id_fkey (
+          users (
             first_name,
             last_name,
             email,
-            profile_image,
-            bio,
-            timezone
+            profile_image
           ),
           mentor_expertise (
             expertise_areas (
               name,
-              category
+              description
             )
           )
         `)
@@ -1049,6 +1040,21 @@ export default function MenteeDashboard() {
 
                 {activeTab === "seminars" && (
           <div className="space-y-6">
+            {/* Seminars Header */}
+            <Card className="bg-gradient-primary text-white border-0 shadow-lg">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold mb-2">Public Seminars</h2>
+                    <p className="text-blue-100">Discover and join free seminars from expert mentors</p>
+                  </div>
+                  <div className="text-right">
+                    <BookOpen className="h-8 w-8 text-blue-200" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <PublicSeminarsList
                 showFollowedOnly={true}

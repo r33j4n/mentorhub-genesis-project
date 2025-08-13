@@ -8,7 +8,7 @@ CREATE POLICY "Admins can view all users"
     EXISTS (
       SELECT 1 FROM public.user_roles 
       WHERE user_id = auth.uid() 
-      AND role_type = 'admin'
+      AND role = 'admin'
     )
   );
 
@@ -20,7 +20,7 @@ CREATE POLICY "Admins can update all users"
     EXISTS (
       SELECT 1 FROM public.user_roles 
       WHERE user_id = auth.uid() 
-      AND role_type = 'admin'
+      AND role = 'admin'
     )
   );
 
@@ -33,7 +33,7 @@ CREATE POLICY "Admins can view all mentors"
     EXISTS (
       SELECT 1 FROM public.user_roles 
       WHERE user_id = auth.uid() 
-      AND role_type = 'admin'
+      AND role = 'admin'
     )
   );
 
@@ -45,7 +45,7 @@ CREATE POLICY "Admins can update all mentors"
     EXISTS (
       SELECT 1 FROM public.user_roles 
       WHERE user_id = auth.uid() 
-      AND role_type = 'admin'
+      AND role = 'admin'
     )
   );
 
@@ -58,7 +58,7 @@ CREATE POLICY "Admins can view all mentees"
     EXISTS (
       SELECT 1 FROM public.user_roles 
       WHERE user_id = auth.uid() 
-      AND role_type = 'admin'
+      AND role = 'admin'
     )
   );
 
@@ -70,7 +70,7 @@ CREATE POLICY "Admins can update all mentees"
     EXISTS (
       SELECT 1 FROM public.user_roles 
       WHERE user_id = auth.uid() 
-      AND role_type = 'admin'
+      AND role = 'admin'
     )
   );
 
@@ -83,7 +83,7 @@ CREATE POLICY "Admins can view all user roles"
     EXISTS (
       SELECT 1 FROM public.user_roles 
       WHERE user_id = auth.uid() 
-      AND role_type = 'admin'
+      AND role = 'admin'
     )
   );
 
@@ -95,6 +95,6 @@ CREATE POLICY "Admins can update user roles"
     EXISTS (
       SELECT 1 FROM public.user_roles 
       WHERE user_id = auth.uid() 
-      AND role_type = 'admin'
+      AND role = 'admin'
     )
   );

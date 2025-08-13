@@ -20,9 +20,9 @@ export const useAdminAccess = (user: User | null) => {
     try {
       const { data, error } = await supabase
         .from('user_roles')
-        .select('role_type')
+        .select('role')
         .eq('user_id', user.id)
-        .eq('role_type', 'admin')
+        .eq('role', 'admin')
         .maybeSingle();
 
       if (error) throw error;

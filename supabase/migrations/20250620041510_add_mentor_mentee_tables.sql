@@ -14,7 +14,7 @@ AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.user_roles 
     WHERE user_roles.user_id = $1 
-    AND role_type = 'admin'
+    AND role = 'admin'
   );
 $$;
 

@@ -205,7 +205,7 @@ export class MentorFollowService {
         .select(`
           *,
           mentor:mentor_id (
-            users:mentors_mentor_id_fkey (
+            users (
               first_name,
               last_name,
               profile_image
@@ -226,7 +226,7 @@ export class MentorFollowService {
     }
   }
 
-  // Get all public seminars (excluding seminars from followed mentors)
+  // Get all public seminars
   static async getAllPublicSeminars(): Promise<PublicSeminar[]> {
     try {
       const currentUserId = await getCurrentUserId();
@@ -235,44 +235,27 @@ export class MentorFollowService {
         return [];
       }
 
-      console.log('Getting all public seminars (excluding followed mentors) for user:', currentUserId);
+      console.log('Getting all public seminars for user:', currentUserId);
 
-      // First, get the mentor IDs that the current user follows
-      const { data: followedMentors, error: followsError } = await supabase
-        .from('mentor_follows')
-        .select('mentor_id')
-        .eq('mentee_id', currentUserId);
-
-      if (followsError) throw followsError;
-
-      console.log('Followed mentor IDs to exclude:', followedMentors);
-
-      // Get all seminars, excluding those from followed mentors
-      let query = supabase
+      // Get all public seminars
+      const { data, error } = await supabase
         .from('public_seminars')
         .select(`
           *,
           mentor:mentor_id (
-            users:mentors_mentor_id_fkey (
+            users (
               first_name,
               last_name,
               profile_image
             )
           )
         `)
-        .gte('seminar_date', new Date().toISOString());
-
-      // If user follows mentors, exclude their seminars
-      if (followedMentors && followedMentors.length > 0) {
-        const mentorIds = followedMentors.map(fm => fm.mentor_id);
-        query = query.not('mentor_id', 'in', `(${mentorIds.join(',')})`);
-      }
-
-      const { data, error } = await query.order('seminar_date', { ascending: true });
+        .gte('seminar_date', new Date().toISOString())
+        .order('seminar_date', { ascending: true });
 
       if (error) throw error;
 
-      console.log('All public seminars (excluding followed):', data);
+      console.log('All public seminars:', data);
       return data || [];
     } catch (error) {
       console.error('Error getting public seminars:', error);
@@ -280,57 +263,98 @@ export class MentorFollowService {
     }
   }
 
-  // Join a public seminar
-  static async joinSeminar(seminarId: string): Promise<boolean> {
+  // Join a public seminar (reserve seat)
+  static async joinSeminar(seminarId: string): Promise<{ success: boolean; message?: string }> {
     try {
-      const currentUserId = getCurrentUserId();
+      const currentUserId = await getCurrentUserId();
       if (!currentUserId) {
         console.error('No authenticated user found');
-        return false;
+        return { success: false, message: 'Authentication required' };
       }
 
-      const { error } = await supabase
+      // First, check if user is already participating
+      const isAlreadyParticipating = await this.isParticipatingInSeminar(seminarId);
+      if (isAlreadyParticipating) {
+        return { success: false, message: 'You are already registered for this seminar' };
+      }
+
+      // Get seminar details to check capacity
+      const { data: seminar, error: seminarError } = await supabase
+        .from('public_seminars')
+        .select('max_participants, current_participants, title')
+        .eq('id', seminarId)
+        .single();
+
+      if (seminarError) throw seminarError;
+
+      // Check if seminar is full
+      if (seminar.max_participants && seminar.current_participants >= seminar.max_participants) {
+        return { success: false, message: 'This seminar is full. No seats available.' };
+      }
+
+      // Join the seminar (trigger will automatically update participant count)
+      const { error: joinError } = await supabase
         .from('seminar_participants')
         .insert({
           mentee_id: currentUserId,
           seminar_id: seminarId
         });
 
-      if (error) throw error;
-      return true;
+      if (joinError) throw joinError;
+
+      console.log(`Successfully reserved seat for seminar: ${seminar.title}`);
+      return { success: true, message: `Seat reserved for "${seminar.title}"` };
     } catch (error) {
       console.error('Error joining seminar:', error);
-      return false;
+      return { success: false, message: 'Failed to reserve seat. Please try again.' };
     }
   }
 
-  // Leave a public seminar
-  static async leaveSeminar(seminarId: string): Promise<boolean> {
+  // Leave a public seminar (cancel seat reservation)
+  static async leaveSeminar(seminarId: string): Promise<{ success: boolean; message?: string }> {
     try {
-      const currentUserId = getCurrentUserId();
+      const currentUserId = await getCurrentUserId();
       if (!currentUserId) {
         console.error('No authenticated user found');
-        return false;
+        return { success: false, message: 'Authentication required' };
       }
 
-      const { error } = await supabase
+      // Check if user is actually participating
+      const isParticipating = await this.isParticipatingInSeminar(seminarId);
+      if (!isParticipating) {
+        return { success: false, message: 'You are not registered for this seminar' };
+      }
+
+      // Get seminar title for the success message
+      const { data: seminar, error: seminarError } = await supabase
+        .from('public_seminars')
+        .select('title')
+        .eq('id', seminarId)
+        .single();
+
+      if (seminarError) throw seminarError;
+
+      // Remove participation (trigger will automatically update participant count)
+      const { error: leaveError } = await supabase
         .from('seminar_participants')
         .delete()
         .eq('seminar_id', seminarId)
         .eq('mentee_id', currentUserId);
 
-      if (error) throw error;
-      return true;
+      if (leaveError) throw leaveError;
+
+      console.log(`Successfully cancelled seat reservation for seminar: ${seminar.title}`);
+      return { success: true, message: `Seat reservation cancelled for "${seminar.title}"` };
     } catch (error) {
       console.error('Error leaving seminar:', error);
-      return false;
+      return { success: false, message: 'Failed to cancel seat reservation. Please try again.' };
     }
   }
 
   // Check if user is participating in a seminar
   static async isParticipatingInSeminar(seminarId: string): Promise<boolean> {
     try {
-      const currentUserId = getCurrentUserId();
+      const currentUserId = await getCurrentUserId();
       if (!currentUserId) {
         console.error('No authenticated user found');
         return false;
@@ -348,6 +372,75 @@ export class MentorFollowService {
     } catch (error) {
       console.error('Error checking participation status:', error);
       return false;
+    }
+  }
+
+  // Check if seminar has available seats
+  static async checkSeatAvailability(seminarId: string): Promise<{ available: boolean; remainingSeats?: number; totalSeats?: number }> {
+    try {
+      const { data: seminar, error } = await supabase
+        .from('public_seminars')
+        .select('max_participants, current_participants')
+        .eq('id', seminarId)
+        .single();
+
+      if (error) throw error;
+
+      if (!seminar.max_participants) {
+        return { available: true }; // Unlimited seats
+      }
+
+      const remainingSeats = seminar.max_participants - seminar.current_participants;
+      return {
+        available: remainingSeats > 0,
+        remainingSeats,
+        totalSeats: seminar.max_participants
+      };
+    } catch (error) {
+      console.error('Error checking seat availability:', error);
+      return { available: false };
+    }
+  }
+
+  // Get seminar participants (for mentors to view who reserved seats)
+  static async getSeminarParticipants(seminarId: string): Promise<Array<{
+    id: string;
+    mentee_id: string;
+    seminar_id: string;
+    created_at: string;
+    mentee: {
+      users: {
+        first_name: string;
+        last_name: string;
+        email: string;
+        profile_image: string;
+      };
+    };
+  }>> {
+    try {
+      console.log('Getting participants for seminar:', seminarId);
+      const { data, error } = await supabase
+        .from('seminar_participants')
+        .select(`
+          *,
+          mentee:mentee_id (
+            users:user_id_fkey (
+              first_name,
+              last_name,
+              email,
+              profile_image
+            )
+          )
+        `)
+        .eq('seminar_id', seminarId)
+        .order('created_at', { ascending: true });
+
+      console.log('Raw participants query result:', { data, error });
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error getting seminar participants:', error);
+      return [];
     }
   }
 

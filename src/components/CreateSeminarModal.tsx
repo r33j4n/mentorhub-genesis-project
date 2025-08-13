@@ -164,25 +164,47 @@ export const CreateSeminarModal: React.FC<CreateSeminarModalProps> = ({
     try {
       // Check if user is a mentor
       console.log('Checking mentor status for user:', user?.id);
+      
+      // First check if user has mentor role
+      const { data: userRoles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user?.id);
+
+      console.log('User roles check:', { userRoles, rolesError });
+
+      if (rolesError) {
+        console.error('Roles check error:', rolesError);
+        throw new Error('Failed to verify user roles. Please try again.');
+      }
+
+      const isMentor = userRoles?.some(role => role.role === 'mentor');
+      console.log('Is mentor based on roles:', isMentor);
+
+      if (!isMentor) {
+        throw new Error('You must be a registered mentor to create seminars. Please complete your mentor profile setup first.');
+      }
+
+      // Then check if mentor profile exists
       const { data: mentorData, error: mentorError } = await supabase
         .from('mentors')
         .select('mentor_id')
         .eq('mentor_id', user?.id)
         .single();
 
-      console.log('Mentor check result:', { mentorData, mentorError });
+      console.log('Mentor profile check result:', { mentorData, mentorError });
 
       if (mentorError) {
-        console.error('Mentor check error:', mentorError);
+        console.error('Mentor profile check error:', mentorError);
         if (mentorError.code === 'PGRST116') {
-          throw new Error('You must be a registered mentor to create seminars. Please contact support to set up your mentor account.');
+          throw new Error('Mentor profile not found. Please complete your mentor profile setup first.');
         } else {
           throw new Error(`Mentor verification failed: ${mentorError.message}`);
         }
       }
 
       if (!mentorData) {
-        throw new Error('You must be a registered mentor to create seminars. Please contact support to set up your mentor account.');
+        throw new Error('Mentor profile not found. Please complete your mentor profile setup first.');
       }
 
       const selectedDateTime = new Date(`${formData.seminar_date}T${formData.seminar_time}`);

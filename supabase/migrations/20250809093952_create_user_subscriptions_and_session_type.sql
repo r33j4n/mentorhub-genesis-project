@@ -30,6 +30,12 @@ CREATE INDEX IF NOT EXISTS idx_sessions_user_subscription_id ON sessions(user_su
 -- Add RLS policies
 ALTER TABLE user_subscriptions ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view their own subscriptions" ON user_subscriptions;
+DROP POLICY IF EXISTS "Users can insert their own subscriptions" ON user_subscriptions;
+DROP POLICY IF EXISTS "Users can update their own subscriptions" ON user_subscriptions;
+DROP POLICY IF EXISTS "Users can delete their own subscriptions" ON user_subscriptions;
+
 -- Policy: Users can view their own subscriptions
 CREATE POLICY "Users can view their own subscriptions" ON user_subscriptions
   FOR SELECT USING (auth.uid() = mentee_id OR auth.uid() = mentor_id);
@@ -63,6 +69,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Create trigger to automatically update subscription calls
+DROP TRIGGER IF EXISTS update_user_subscription_calls_trigger ON sessions;
 CREATE TRIGGER update_user_subscription_calls_trigger
   AFTER UPDATE ON sessions
   FOR EACH ROW

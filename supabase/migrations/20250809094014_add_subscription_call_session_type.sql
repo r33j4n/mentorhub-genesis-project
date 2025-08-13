@@ -1,2 +1,2 @@
--- Add subscription_call to session_type enum
-ALTER TYPE session_type ADD VALUE IF NOT EXISTS 'subscription_call';
+-- This migration is no longer needed as session_type is now a TEXT column with CHECK constraint
+-- The session_type column was already added in the previous migration

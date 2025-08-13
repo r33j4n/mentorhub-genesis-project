@@ -1,2 +1,2 @@
--- Add subscription_call to session_type enum
-ALTER TYPE session_type ADD VALUE IF NOT EXISTS 'subscription_call'; 
+-- Add session_type column to sessions table if it doesn't exist
+ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS session_type TEXT DEFAULT 'regular' CHECK (session_type IN ('regular', 'subscription_call')); 

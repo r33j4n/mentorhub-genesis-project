@@ -13,20 +13,18 @@ interface MentorCardProps {
   mentor: {
     mentor_id: string;
     hourly_rate: number;
-    experience_years: number;
     rating: number;
-    reviews_count: number;
+    total_sessions: number;
+    is_approved: boolean;
     users: {
       first_name: string;
       last_name: string;
-      bio: string;
       profile_image: string;
-      timezone: string;
     };
     mentor_expertise: Array<{
       expertise_areas: {
         name: string;
-        category: string;
+        description: string;
       };
     }>;
   };
@@ -126,7 +124,7 @@ export const MentorCard = ({ mentor, onBookSession }: MentorCardProps) => {
                         {mentor.rating.toFixed(1)}
                       </span>
                       <span className="text-sm text-gray-500">
-                        ({mentor.reviews_count} reviews)
+                        ({mentor.total_sessions} sessions)
                       </span>
                     </div>
                   </div>
@@ -144,11 +142,11 @@ export const MentorCard = ({ mentor, onBookSession }: MentorCardProps) => {
                 <div className="flex items-center gap-4 mt-3 text-sm text-gray-600">
                   <div className="flex items-center">
                     <Award className="h-4 w-4 mr-1 text-blue-500" />
-                    <span>{mentor.experience_years}+ years</span>
+                    <span>{mentor.total_sessions}+ sessions</span>
                   </div>
                   <div className="flex items-center">
                     <MapPin className="h-4 w-4 mr-1 text-green-500" />
-                    <span>{user.timezone}</span>
+                    <span>Available</span>
                   </div>
                   <div className={`flex items-center ${availability.color}`}>
                     <CheckCircle className="h-4 w-4 mr-1" />
@@ -164,7 +162,7 @@ export const MentorCard = ({ mentor, onBookSession }: MentorCardProps) => {
           {/* Bio */}
           <div className="bg-gray-50 rounded-lg p-4">
             <p className="text-gray-700 text-sm line-clamp-3 leading-relaxed">
-              {user.bio || "Experienced professional passionate about helping others grow in their careers. Let's work together to achieve your goals!"}
+              Experienced professional passionate about helping others grow in their careers. Let's work together to achieve your goals!
             </p>
           </div>
           

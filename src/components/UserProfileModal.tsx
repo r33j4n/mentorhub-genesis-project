@@ -245,11 +245,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
         .select(`
           *,
           mentor:mentor_id (
-            users:mentors_mentor_id_fkey (
+            users (
               first_name,
               last_name,
-              profile_image,
-              bio
+              profile_image
             )
           )
         `)

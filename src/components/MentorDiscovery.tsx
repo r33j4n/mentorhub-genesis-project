@@ -13,28 +13,26 @@ import { toast } from '@/components/ui/use-toast';
 import { Search, Filter, Users, Star, MapPin, Clock, DollarSign, Award, X, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface ExpertiseArea {
-  area_id: string;
+  id: string;
   name: string;
-  category: string;
+  description: string;
 }
 
 interface Mentor {
   mentor_id: string;
   hourly_rate: number;
-  experience_years: number;
   rating: number;
-  reviews_count: number;
+  total_sessions: number;
+  is_approved: boolean;
   users: {
     first_name: string;
     last_name: string;
-    bio: string;
     profile_image: string;
-    timezone: string;
   };
   mentor_expertise: Array<{
     expertise_areas: {
       name: string;
-      category: string;
+      description: string;
     };
   }>;
 }
@@ -75,14 +73,19 @@ export const MentorDiscovery = () => {
         .from('mentors')
         .select(`
           *,
-          users:mentors_mentor_id_fkey (
+          users (
             first_name,
             last_name,
-            bio,
-            profile_image,
-            timezone
+            profile_image
+          ),
+          mentor_expertise (
+            expertise_areas (
+              name,
+              description
+            )
           )
         `)
+        .eq('is_approved', true)
         .order('created_at', { ascending: false });
 
       console.log('Mentors query result:', { mentorsData, mentorsError });
@@ -103,53 +106,14 @@ export const MentorDiscovery = () => {
         return;
       }
 
-      // Now get user data for each mentor
-      const mentorsWithUserData = await Promise.all(
-        mentorsData.map(async (mentor) => {
-          const { data: userData, error: userError } = await supabase
-            .from('users')
-            .select('*')
-            .eq('user_id', mentor.mentor_id)
-            .single();
-
-          if (userError) {
-            console.error('Error fetching user data:', userError);
-            return null;
-          }
-
-          // Get mentor expertise
-          const { data: expertiseData, error: expertiseError } = await supabase
-            .from('mentor_expertise')
-            .select(`
-              expertise_areas (
-                name,
-                category
-              )
-            `)
-            .eq('mentor_id', mentor.mentor_id);
-
-          if (expertiseError) {
-            console.error('Error fetching expertise:', expertiseError);
-          }
-
-          return {
-            ...mentor,
-            users: userData,
-            mentor_expertise: expertiseData || []
-          };
-        })
-      );
-
-      const validMentors = mentorsWithUserData.filter(mentor => mentor !== null);
-      console.log('Final mentors data:', validMentors);
-      console.log('Total mentors loaded:', validMentors.length);
-      console.log('Mentors with user data:', validMentors.map(m => ({
+      console.log('Mentors loaded:', mentorsData.length);
+      console.log('Mentors with user data:', mentorsData.map(m => ({
         id: m.mentor_id,
         name: `${m.users?.first_name} ${m.users?.last_name}`,
         approved: m.is_approved,
         expertise: m.mentor_expertise?.length || 0
       })));
-      setMentors(validMentors);
+      setMentors(mentorsData);
     } catch (error: any) {
       console.error('Error in loadMentors:', error);
       toast({
@@ -167,8 +131,7 @@ export const MentorDiscovery = () => {
       const { data, error } = await supabase
         .from('expertise_areas')
         .select('*')
-        .eq('is_active', true)
-        .order('category', { ascending: true });
+        .order('name', { ascending: true });
 
       if (error) {
         console.error('Error loading expertise areas:', error);
@@ -189,13 +152,11 @@ export const MentorDiscovery = () => {
       const searchLower = searchTerm.toLowerCase();
       filtered = filtered.filter(mentor => {
         const fullName = `${mentor.users.first_name} ${mentor.users.last_name}`.toLowerCase();
-        const bio = mentor.users.bio?.toLowerCase() || '';
         const expertise = mentor.mentor_expertise
           .map(e => e.expertise_areas.name.toLowerCase())
           .join(' ');
         
         return fullName.includes(searchLower) || 
-               bio.includes(searchLower) || 
                expertise.includes(searchLower);
       });
     }
@@ -211,7 +172,7 @@ export const MentorDiscovery = () => {
     if (selectedCategories.length > 0) {
       filtered = filtered.filter(mentor =>
         mentor.mentor_expertise.some(e => 
-          selectedCategories.includes(e.expertise_areas.category)
+          selectedCategories.includes(e.expertise_areas.description)
         )
       );
     }
@@ -221,10 +182,10 @@ export const MentorDiscovery = () => {
       mentor.hourly_rate >= priceRange[0] && mentor.hourly_rate <= priceRange[1]
     );
 
-    // Experience range filter
-    filtered = filtered.filter(mentor =>
-      mentor.experience_years >= experienceRange[0] && mentor.experience_years <= experienceRange[1]
-    );
+    // Experience range filter - removed since experience_years field doesn't exist
+    // filtered = filtered.filter(mentor =>
+    //   mentor.experience_years >= experienceRange[0] && mentor.experience_years <= experienceRange[1]
+    // );
 
     // Rating filter
     if (ratingFilter > 0) {
@@ -241,7 +202,7 @@ export const MentorDiscovery = () => {
         case 'price_high':
           return b.hourly_rate - a.hourly_rate;
         case 'experience':
-          return b.experience_years - a.experience_years;
+          return b.total_sessions - a.total_sessions; // Use total_sessions instead of experience_years
         default:
           return 0;
       }
@@ -262,7 +223,7 @@ export const MentorDiscovery = () => {
 
   const getUniqueCategories = () => {
     const categories = new Set<string>();
-    expertiseAreas.forEach(area => categories.add(area.category));
+    expertiseAreas.forEach(area => categories.add(area.description));
     return Array.from(categories);
   };
 
@@ -342,9 +303,9 @@ export const MentorDiscovery = () => {
                   <SelectContent>
                     <SelectItem value="all">All Areas</SelectItem>
                     {expertiseAreas.map(area => (
-                      <SelectItem key={area.area_id} value={area.name}>
-                        {area.name}
-                      </SelectItem>
+                                      <SelectItem key={area.id} value={area.name}>
+                  {area.name}
+                </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -562,9 +523,9 @@ export const MentorDiscovery = () => {
                 </div>
                 <div>
                   <div className="text-3xl font-bold text-orange-600 mb-2">
-                    {mentors.length > 0 ? Math.round(mentors.reduce((acc, m) => acc + m.experience_years, 0) / mentors.length) : 0}
+                    {mentors.length > 0 ? Math.round(mentors.reduce((acc, m) => acc + m.total_sessions, 0) / mentors.length) : 0}
                   </div>
-                  <div className="text-gray-600">Avg. Experience</div>
+                  <div className="text-gray-600">Avg. Sessions</div>
                 </div>
               </div>
             </CardContent>

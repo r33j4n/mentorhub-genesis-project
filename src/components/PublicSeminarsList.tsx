@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Calendar, Clock, Users, DollarSign, Video, BookOpen, Heart, User, Building2, ExternalLink } from 'lucide-react';
+import { Calendar, Clock, Users, DollarSign, Video, BookOpen, Heart, User, Building2, ExternalLink, CheckCircle } from 'lucide-react';
 import { MentorFollowService, PublicSeminar } from '@/services/mentorFollowService';
 import { toast } from '@/components/ui/use-toast';
 import { FollowMentorButton } from './FollowMentorButton';
@@ -63,17 +64,19 @@ export const PublicSeminarsList: React.FC<PublicSeminarsListProps> = ({
 
   const handleJoinSeminar = async (seminar: PublicSeminar) => {
     try {
-      const success = await MentorFollowService.joinSeminar(seminar.id);
-      if (success) {
+      const result = await MentorFollowService.joinSeminar(seminar.id);
+      if (result.success) {
         setParticipatingSeminars(prev => new Set(prev).add(seminar.id));
+        // Reload seminars to update participant count
+        await loadSeminars();
         toast({
-          title: "Joined Seminar",
-          description: `You've joined "${seminar.title}"`,
+          title: "Seat Reserved! 🎉",
+          description: result.message || `Your seat has been reserved for "${seminar.title}"`,
         });
       } else {
         toast({
-          title: "Error",
-          description: "Failed to join seminar",
+          title: "Reservation Failed",
+          description: result.message || "Failed to reserve seat",
           variant: "destructive"
         });
       }
@@ -81,7 +84,7 @@ export const PublicSeminarsList: React.FC<PublicSeminarsListProps> = ({
       console.error('Error joining seminar:', error);
       toast({
         title: "Error",
-        description: "Failed to join seminar",
+        description: "Failed to reserve seat. Please try again.",
         variant: "destructive"
       });
     }
@@ -89,21 +92,23 @@ export const PublicSeminarsList: React.FC<PublicSeminarsListProps> = ({
 
   const handleLeaveSeminar = async (seminar: PublicSeminar) => {
     try {
-      const success = await MentorFollowService.leaveSeminar(seminar.id);
-      if (success) {
+      const result = await MentorFollowService.leaveSeminar(seminar.id);
+      if (result.success) {
         setParticipatingSeminars(prev => {
           const newSet = new Set(prev);
           newSet.delete(seminar.id);
           return newSet;
         });
+        // Reload seminars to update participant count
+        await loadSeminars();
         toast({
-          title: "Left Seminar",
-          description: `You've left "${seminar.title}"`,
+          title: "Reservation Cancelled",
+          description: result.message || `Your seat reservation for "${seminar.title}" has been cancelled`,
         });
       } else {
         toast({
-          title: "Error",
-          description: "Failed to leave seminar",
+          title: "Cancellation Failed",
+          description: result.message || "Failed to cancel seat reservation",
           variant: "destructive"
         });
       }
@@ -111,7 +116,7 @@ export const PublicSeminarsList: React.FC<PublicSeminarsListProps> = ({
       console.error('Error leaving seminar:', error);
       toast({
         title: "Error",
-        description: "Failed to leave seminar",
+        description: "Failed to cancel seat reservation. Please try again.",
         variant: "destructive"
       });
     }
@@ -344,24 +349,94 @@ export const PublicSeminarsList: React.FC<PublicSeminarsListProps> = ({
 
                   <div className="flex flex-col gap-2 ml-4">
                     {participatingSeminars.has(seminar.id) ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleLeaveSeminar(seminar)}
-                        className="border-red-300 text-red-600 hover:bg-red-50"
-                      >
-                        Leave
-                      </Button>
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-1 text-sm text-green-600 mb-1">
+                          <CheckCircle className="h-4 w-4" />
+                          <span>Seat Reserved</span>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleLeaveSeminar(seminar)}
+                          className="border-red-300 text-red-600 hover:bg-red-50"
+                        >
+                          Cancel Reservation
+                        </Button>
+                      </div>
                     ) : (
-                      <Button
-                        size="sm"
-                        onClick={() => handleJoinSeminar(seminar)}
-                        className="bg-purple-600 hover:bg-purple-700"
-                        disabled={seminar.status === 'cancelled' || seminar.status === 'completed'}
-                      >
-                        <BookOpen className="h-4 w-4 mr-1" />
-                        Join
-                      </Button>
+                      <div className="flex flex-col gap-2">
+                        {/* Seat availability indicator */}
+                        <div className="text-xs text-gray-500 mb-1">
+                          {seminar.max_participants ? (
+                            <span>
+                              {seminar.current_participants}/{seminar.max_participants} seats taken
+                            </span>
+                          ) : (
+                            <span>Unlimited seats</span>
+                          )}
+                        </div>
+                        
+                        {/* Check if seminar is full */}
+                        {(() => {
+                          const isFull = seminar.max_participants && seminar.current_participants >= seminar.max_participants;
+                          
+                          if (isFull) {
+                            return (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled
+                                className="border-gray-300 text-gray-500 cursor-not-allowed"
+                              >
+                                <BookOpen className="h-4 w-4 mr-1" />
+                                Full
+                              </Button>
+                            );
+                          }
+                          
+                          return (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  className="bg-purple-600 hover:bg-purple-700"
+                                  disabled={seminar.status === 'cancelled' || seminar.status === 'completed'}
+                                >
+                                  <BookOpen className="h-4 w-4 mr-1" />
+                                  Reserve Seat
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Confirm Seat Reservation</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to reserve a seat for <strong>"{seminar.title}"</strong>?
+                                    <br /><br />
+                                    <strong>Details:</strong>
+                                    <br />• Date: {formatDate(seminar.seminar_date)}
+                                    <br />• Time: {formatTime(seminar.seminar_date)} ({seminar.duration_minutes} min)
+                                    <br />• {seminar.is_free ? 'Free Seminar' : `Price: $${seminar.price}`}
+                                    {seminar.max_participants ? (
+                                      <>
+                                        <br />• Available seats: {seminar.max_participants - seminar.current_participants}
+                                      </>
+                                    ) : null}
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleJoinSeminar(seminar)}
+                                    className="bg-purple-600 hover:bg-purple-700"
+                                  >
+                                    Reserve My Seat
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          );
+                        })()}
+                      </div>
                     )}
                     
                     {seminar.zoom_meeting_id && (

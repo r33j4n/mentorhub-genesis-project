@@ -39,20 +39,18 @@ interface ExpertiseArea {
 interface Mentor {
   mentor_id: string;
   hourly_rate: number;
-  experience_years: number;
   rating: number;
-  reviews_count: number;
+  total_sessions: number;
+  is_approved: boolean;
   users: {
     first_name: string;
     last_name: string;
-    bio: string;
     profile_image: string;
-    timezone: string;
   };
   mentor_expertise: Array<{
     expertise_areas: {
       name: string;
-      category: string;
+      description: string;
     };
   }>;
 }
@@ -90,12 +88,10 @@ export const Mentors = () => {
         .from('mentors')
         .select(`
           *,
-          users:mentors_mentor_id_fkey (
+          users (
             first_name,
             last_name,
-            bio,
-            profile_image,
-            timezone
+            profile_image
           )
         `)
         .order('created_at', { ascending: false });
@@ -191,14 +187,12 @@ export const Mentors = () => {
       const searchLower = searchTerm.toLowerCase();
       filtered = filtered.filter(mentor => {
         const fullName = `${mentor.users.first_name} ${mentor.users.last_name}`.toLowerCase();
-        const bio = mentor.users.bio?.toLowerCase() || '';
-        const expertise = mentor.mentor_expertise
-          .map(e => e.expertise_areas.name.toLowerCase())
-          .join(' ');
-        
-        return fullName.includes(searchLower) || 
-               bio.includes(searchLower) || 
-               expertise.includes(searchLower);
+              const expertise = mentor.mentor_expertise
+        .map(e => e.expertise_areas.name.toLowerCase())
+        .join(' ');
+      
+      return fullName.includes(searchLower) || 
+             expertise.includes(searchLower);
       });
     }
 
@@ -524,7 +518,7 @@ export const Mentors = () => {
                         <div className="flex items-center">
                           <Star className="h-4 w-4 text-yellow-400 fill-current" />
                           <span className="ml-1 text-sm font-medium">{mentor.rating.toFixed(1)}</span>
-                          <span className="ml-1 text-sm text-gray-500">({mentor.reviews_count} reviews)</span>
+                          <span className="ml-1 text-sm text-gray-500">({mentor.total_sessions} sessions)</span>
                         </div>
                         <div className={`flex items-center text-sm ${getAvailabilityStatus(mentor).color}`}>
                           <CheckCircle className="h-4 w-4 mr-1" />
@@ -539,7 +533,7 @@ export const Mentors = () => {
                   {/* Bio */}
                   <div className="bg-gray-50 rounded-lg p-4">
                     <p className="text-gray-700 text-sm leading-relaxed">
-                      {mentor.users.bio || "Experienced professional with a passion for mentoring and helping others grow in their careers."}
+                      Experienced professional with a passion for mentoring and helping others grow in their careers.
                     </p>
                   </div>
 
@@ -568,8 +562,8 @@ export const Mentors = () => {
                   {/* Quick Stats */}
                   <div className="grid grid-cols-3 gap-4 pt-2">
                     <div className="text-center">
-                      <div className="text-lg font-bold text-blue-600">{mentor.experience_years}</div>
-                      <div className="text-xs text-gray-500">Years Exp.</div>
+                      <div className="text-lg font-bold text-blue-600">{mentor.total_sessions}</div>
+                      <div className="text-xs text-gray-500">Sessions</div>
                     </div>
                     <div className="text-center">
                       <div className="text-lg font-bold text-green-600">{Math.floor(Math.random() * 50) + 20}%</div>

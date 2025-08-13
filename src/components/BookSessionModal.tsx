@@ -64,7 +64,7 @@ export const BookSessionModal = ({ mentorId, isOpen, onClose }: BookSessionModal
       const { data: mentorData, error: mentorError } = await supabase
         .from('mentors')
         .select(`
-          users:mentors_mentor_id_fkey (
+          users (
             first_name,
             last_name,
             email

@@ -13,9 +13,9 @@ import { Users, User, Briefcase, Target, ArrowRight, CheckCircle } from 'lucide-
 import { Logo } from '@/components/ui/logo';
 
 interface ExpertiseArea {
-  area_id: string;
+  id: string;
   name: string;
-  category: string;
+  description: string | null;
 }
 
 export const ProfileSetup = () => {
@@ -28,28 +28,18 @@ export const ProfileSetup = () => {
   // Profile data
   const [profileData, setProfileData] = useState({
     firstName: '',
-    lastName: '',
-    bio: '',
-    phone: '',
-    timezone: 'UTC'
+    lastName: ''
   });
 
   // Mentor specific data
   const [mentorData, setMentorData] = useState({
     hourlyRate: '',
-    experienceYears: '',
-    githubUrl: '',
-    linkedinUrl: '',
-    portfolioUrl: '',
     selectedExpertise: [] as string[]
   });
 
   // Mentee specific data
   const [menteeData, setMenteeData] = useState({
-    careerStage: '',
-    goals: '',
-    budgetRange: '',
-    preferredCommunication: ''
+    goals: ''
   });
 
   useEffect(() => {
@@ -65,8 +55,7 @@ export const ProfileSetup = () => {
     const { data, error } = await supabase
       .from('expertise_areas')
       .select('*')
-      .eq('is_active', true)
-      .order('category', { ascending: true });
+      .order('name', { ascending: true });
 
     if (error) {
       toast({
@@ -91,21 +80,18 @@ export const ProfileSetup = () => {
     if (userData && !userError) {
       setProfileData({
         firstName: userData.first_name || '',
-        lastName: userData.last_name || '',
-        bio: userData.bio || '',
-        phone: userData.phone || '',
-        timezone: userData.timezone || 'UTC'
+        lastName: userData.last_name || ''
       });
     }
 
     // Check if user has roles
     const { data: roles, error: rolesError } = await supabase
       .from('user_roles')
-      .select('role_type')
+      .select('role')
       .eq('user_id', user.id);
 
     if (roles && roles.length > 0) {
-      const role = roles[0].role_type;
+      const role = roles[0].role;
       if (role === 'mentor' || role === 'mentee') {
         setUserType(role);
         setStep(2);
@@ -118,15 +104,44 @@ export const ProfileSetup = () => {
     
     setLoading(true);
     try {
-      // Insert user role
+      // First, ensure user exists in users table
+      const { data: existingUser, error: userCheckError } = await supabase
+        .from('users')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (userCheckError && userCheckError.code === 'PGRST116') {
+        // User doesn't exist, create basic profile first
+        console.log('Creating user profile first...');
+        const { error: createUserError } = await supabase
+          .from('users')
+          .insert({
+            user_id: user.id,
+            first_name: user.user_metadata?.first_name || 'User',
+            last_name: user.user_metadata?.last_name || 'Name',
+            email: user.email || '',
+            profile_image: ''
+          });
+
+        if (createUserError) {
+          console.error('Error creating user profile:', createUserError);
+          throw createUserError;
+        }
+        console.log('User profile created successfully');
+      }
+
+      // Now insert user role
       const { error: roleError } = await supabase
         .from('user_roles')
-        .insert({ user_id: user.id, role_type: userType });
+        .insert({ user_id: user.id, role: userType });
 
       if (roleError) throw roleError;
 
+      console.log('User role created successfully');
       setStep(2);
     } catch (error: any) {
+      console.error('Error in handleUserTypeSubmit:', error);
       toast({
         title: "Error setting user type",
         description: error.message,
@@ -147,36 +162,61 @@ export const ProfileSetup = () => {
         .from('users')
         .update({
           first_name: profileData.firstName,
-          last_name: profileData.lastName,
-          bio: profileData.bio,
-          phone: profileData.phone,
-          timezone: profileData.timezone
+          last_name: profileData.lastName
         })
         .eq('user_id', user.id);
 
       if (profileError) throw profileError;
 
       if (userType === 'mentor') {
-        // Create mentor profile
-        const { error: mentorError } = await supabase
+        // Check if mentor profile already exists
+        const { data: existingMentor, error: checkError } = await supabase
           .from('mentors')
-          .insert({
-            mentor_id: user.id,
-            hourly_rate: parseFloat(mentorData.hourlyRate) || null,
-            experience_years: parseInt(mentorData.experienceYears) || null,
-            github_url: mentorData.githubUrl || null,
-            linkedin_url: mentorData.linkedinUrl || null,
-            portfolio_url: mentorData.portfolioUrl || null
-          });
+          .select('mentor_id')
+          .eq('mentor_id', user.id)
+          .single();
 
-        if (mentorError) throw mentorError;
+        if (checkError && checkError.code !== 'PGRST116') {
+          throw checkError;
+        }
 
-        // Add expertise areas
+        if (!existingMentor) {
+          // Create mentor profile only if it doesn't exist
+          const { error: mentorError } = await supabase
+            .from('mentors')
+            .insert({
+              mentor_id: user.id,
+              hourly_rate: parseFloat(mentorData.hourlyRate) || null,
+              is_approved: false
+            });
+
+          if (mentorError) throw mentorError;
+        } else {
+          // Update existing mentor profile
+          const { error: mentorError } = await supabase
+            .from('mentors')
+            .update({
+              hourly_rate: parseFloat(mentorData.hourlyRate) || null
+            })
+            .eq('mentor_id', user.id);
+
+          if (mentorError) throw mentorError;
+        }
+
+        // Handle expertise areas
         if (mentorData.selectedExpertise.length > 0) {
+          // First, delete existing expertise areas for this mentor
+          const { error: deleteError } = await supabase
+            .from('mentor_expertise')
+            .delete()
+            .eq('mentor_id', user.id);
+
+          if (deleteError) throw deleteError;
+
+          // Then insert new expertise areas
           const expertiseInserts = mentorData.selectedExpertise.map(areaId => ({
             mentor_id: user.id,
-            area_id: areaId,
-            proficiency_level: 'intermediate' as const
+            area_id: areaId
           }));
 
           const { error: expertiseError } = await supabase
@@ -186,27 +226,51 @@ export const ProfileSetup = () => {
           if (expertiseError) throw expertiseError;
         }
       } else if (userType === 'mentee') {
-        // Create mentee profile
-        const { error: menteeError } = await supabase
+        // Check if mentee profile already exists
+        const { data: existingMentee, error: checkError } = await supabase
           .from('mentees')
-          .insert({
-            mentee_id: user.id,
-            career_stage: menteeData.careerStage as any || null,
-            goals: menteeData.goals || null,
-            budget_range: menteeData.budgetRange || null,
-            preferred_communication: menteeData.preferredCommunication as any || null
-          });
+          .select('mentee_id')
+          .eq('mentee_id', user.id)
+          .single();
 
-        if (menteeError) throw menteeError;
+        if (checkError && checkError.code !== 'PGRST116') {
+          throw checkError;
+        }
+
+        if (!existingMentee) {
+          // Create mentee profile only if it doesn't exist
+          const { error: menteeError } = await supabase
+            .from('mentees')
+            .insert({
+              mentee_id: user.id,
+              goals: menteeData.goals || null
+            });
+
+          if (menteeError) throw menteeError;
+        } else {
+          // Update existing mentee profile
+          const { error: menteeError } = await supabase
+            .from('mentees')
+            .update({
+              goals: menteeData.goals || null
+            })
+            .eq('mentee_id', user.id);
+
+          if (menteeError) throw menteeError;
+        }
       }
 
       toast({
-        title: "Profile created successfully!",
-        description: "Welcome to MentorSES"
+        title: "Profile updated successfully!",
+        description: "Your profile has been saved. Welcome to MentorSES!"
       });
 
-      // Refresh the page to load the dashboard
-      window.location.reload();
+      // Redirect to appropriate dashboard instead of reloading
+      if (userType === 'mentor') {
+        window.location.href = '/mentor-dashboard';
+      } else {
+        window.location.href = '/mentee-dashboard';
+      }
     } catch (error: any) {
       toast({
         title: "Error creating profile",
@@ -364,68 +428,23 @@ export const ProfileSetup = () => {
               </div>
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="bio" className="text-sm font-medium text-gray-700">Bio *</Label>
-              <Textarea
-                id="bio"
-                placeholder="Tell us about yourself, your experience, and what you're passionate about..."
-                value={profileData.bio}
-                onChange={(e) => setProfileData(prev => ({ ...prev, bio: e.target.value }))}
-                className="min-h-32 border-2 border-gray-200 focus:border-blue-500 transition-colors resize-none"
-              />
-            </div>
+
             
-            <div className="space-y-2">
-              <Label htmlFor="phone" className="text-sm font-medium text-gray-700">Phone (optional)</Label>
-              <Input
-                id="phone"
-                type="tel"
-                value={profileData.phone}
-                onChange={(e) => setProfileData(prev => ({ ...prev, phone: e.target.value }))}
-                className="h-12 border-2 border-gray-200 focus:border-blue-500 transition-colors"
-                placeholder="Enter your phone number"
-              />
-            </div>
+
           </div>
 
           {/* Mentor specific fields */}
           {userType === 'mentor' && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Mentor Information</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="hourlyRate">Hourly Rate ($)</Label>
-                  <Input
-                    id="hourlyRate"
-                    type="number"
-                    value={mentorData.hourlyRate}
-                    onChange={(e) => setMentorData(prev => ({ ...prev, hourlyRate: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="experienceYears">Years of Experience</Label>
-                  <Input
-                    id="experienceYears"
-                    type="number"
-                    value={mentorData.experienceYears}
-                    onChange={(e) => setMentorData(prev => ({ ...prev, experienceYears: e.target.value }))}
-                  />
-                </div>
-              </div>
               <div>
-                <Label htmlFor="linkedinUrl">LinkedIn URL</Label>
+                <Label htmlFor="hourlyRate">Hourly Rate ($)</Label>
                 <Input
-                  id="linkedinUrl"
-                  value={mentorData.linkedinUrl}
-                  onChange={(e) => setMentorData(prev => ({ ...prev, linkedinUrl: e.target.value }))}
-                />
-              </div>
-              <div>
-                <Label htmlFor="githubUrl">GitHub URL (optional)</Label>
-                <Input
-                  id="githubUrl"
-                  value={mentorData.githubUrl}
-                  onChange={(e) => setMentorData(prev => ({ ...prev, githubUrl: e.target.value }))}
+                  id="hourlyRate"
+                  type="number"
+                  value={mentorData.hourlyRate}
+                  onChange={(e) => setMentorData(prev => ({ ...prev, hourlyRate: e.target.value }))}
+                  placeholder="Enter your hourly rate"
                 />
               </div>
               <div>
@@ -435,25 +454,25 @@ export const ProfileSetup = () => {
                 ) : (
                   <div className="grid grid-cols-2 gap-2 mt-2">
                     {expertiseAreas.map((area) => (
-                      <div key={area.area_id} className="flex items-center space-x-2">
+                      <div key={area.id} className="flex items-center space-x-2">
                         <Checkbox
-                          id={area.area_id}
-                          checked={mentorData.selectedExpertise.includes(area.area_id)}
+                          id={area.id}
+                          checked={mentorData.selectedExpertise.includes(area.id)}
                           onCheckedChange={(checked) => {
                             if (checked) {
                               setMentorData(prev => ({
                                 ...prev,
-                                selectedExpertise: [...prev.selectedExpertise, area.area_id]
+                                selectedExpertise: [...prev.selectedExpertise, area.id]
                               }));
                             } else {
                               setMentorData(prev => ({
                                 ...prev,
-                                selectedExpertise: prev.selectedExpertise.filter(id => id !== area.area_id)
+                                selectedExpertise: prev.selectedExpertise.filter(id => id !== area.id)
                               }));
                             }
                           }}
                         />
-                        <Label htmlFor={area.area_id} className="text-sm">{area.name}</Label>
+                        <Label htmlFor={area.id} className="text-sm">{area.name}</Label>
                       </div>
                     ))}
                   </div>
@@ -467,21 +486,6 @@ export const ProfileSetup = () => {
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Mentee Information</h3>
               <div>
-                <Label htmlFor="careerStage">Career Stage</Label>
-                <Select value={menteeData.careerStage} onValueChange={(value) => setMenteeData(prev => ({ ...prev, careerStage: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your career stage" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="student">Student</SelectItem>
-                    <SelectItem value="entry_level">Entry Level</SelectItem>
-                    <SelectItem value="mid_level">Mid Level</SelectItem>
-                    <SelectItem value="senior_level">Senior Level</SelectItem>
-                    <SelectItem value="executive">Executive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
                 <Label htmlFor="goals">Goals</Label>
                 <Textarea
                   id="goals"
@@ -490,40 +494,14 @@ export const ProfileSetup = () => {
                   onChange={(e) => setMenteeData(prev => ({ ...prev, goals: e.target.value }))}
                 />
               </div>
-              <div>
-                <Label htmlFor="budgetRange">Budget Range</Label>
-                <Select value={menteeData.budgetRange} onValueChange={(value) => setMenteeData(prev => ({ ...prev, budgetRange: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your budget range" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0-50">$0 - $50/hour</SelectItem>
-                    <SelectItem value="50-100">$50 - $100/hour</SelectItem>
-                    <SelectItem value="100-200">$100 - $200/hour</SelectItem>
-                    <SelectItem value="200+">$200+/hour</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="preferredCommunication">Preferred Communication</Label>
-                <Select value={menteeData.preferredCommunication} onValueChange={(value) => setMenteeData(prev => ({ ...prev, preferredCommunication: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="How do you prefer to communicate?" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="chat">Chat</SelectItem>
-                    <SelectItem value="video">Video</SelectItem>
-                    <SelectItem value="both">Both</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+
             </div>
           )}
 
           <div className="pt-6 border-t border-gray-200">
             <Button 
               onClick={handleProfileSubmit} 
-              disabled={loading || !profileData.firstName || !profileData.lastName || !profileData.bio} 
+              disabled={loading || !profileData.firstName || !profileData.lastName} 
               className="w-full h-14 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold text-lg shadow-lg"
             >
               {loading ? (

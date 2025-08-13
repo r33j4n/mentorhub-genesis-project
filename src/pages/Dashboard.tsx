@@ -13,17 +13,17 @@ import { Users, Calendar, Star, DollarSign, LogOut, Search, User } from 'lucide-
 import { toast } from '@/components/ui/use-toast';
 import { Logo } from '@/components/ui/logo';
 import SessionDetailsModal from '@/components/SessionDetailsModal';
+import { RoleSelectionModal } from '@/components/RoleSelectionModal';
 
 interface UserProfile {
   user_id: string;
   first_name: string;
   last_name: string;
-  bio: string;
   profile_image: string;
 }
 
 interface UserRole {
-  role_type: 'mentor' | 'mentee' | 'admin';
+  role: 'mentor' | 'mentee' | 'admin';
 }
 
 export default function Dashboard() {
@@ -34,6 +34,7 @@ export default function Dashboard() {
   const [sessions, setSessions] = useState([]);
   const [selectedSession, setSelectedSession] = useState<any>(null);
   const [showSessionDetails, setShowSessionDetails] = useState(false);
+  const [showRoleSelection, setShowRoleSelection] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -95,7 +96,7 @@ export default function Dashboard() {
               first_name: user.user_metadata?.first_name || 'User',
               last_name: user.user_metadata?.last_name || 'Name',
               email: user.email || '',
-              bio: '',
+
               profile_image: ''
             });
 
@@ -124,9 +125,9 @@ export default function Dashboard() {
       // Load user roles - filter to only include valid roles and map to UserRole type
       const { data: roles, error: rolesError } = await supabase
         .from('user_roles')
-        .select('role_type')
+        .select('role')
         .eq('user_id', user.id)
-        .in('role_type', ['mentor', 'mentee', 'admin']);
+        .in('role', ['mentor', 'mentee', 'admin']);
 
       console.log('Roles data:', { roles, rolesError });
 
@@ -137,49 +138,38 @@ export default function Dashboard() {
       
       // Filter and map to ensure only valid role types
       const validRoles: UserRole[] = (roles || [])
-        .filter(role => ['mentor', 'mentee', 'admin'].includes(role.role_type))
-        .map(role => ({ role_type: role.role_type as 'mentor' | 'mentee' | 'admin' }));
+        .filter(role => ['mentor', 'mentee', 'admin'].includes(role.role))
+        .map(role => ({ role: role.role as 'mentor' | 'mentee' | 'admin' }));
       
       console.log('Valid roles:', validRoles);
 
-      // If no roles exist, create a default mentee role
+      // If no roles exist, show role selection modal
       if (validRoles.length === 0) {
-        console.log('No roles found, creating default mentee role...');
-        const { error: createRoleError } = await supabase
-          .from('user_roles')
-          .insert({
-            user_id: user.id,
-            role_type: 'mentee'
-          });
+        console.log('No roles found, showing role selection modal...');
+        setShowRoleSelection(true);
+      } else {
+        // If roles exist, set them
+        setUserRoles(validRoles);
 
-        if (createRoleError) {
-          console.error('Error creating default role:', createRoleError);
-        } else {
-          console.log('Default mentee role created');
-          validRoles.push({ role_type: 'mentee' });
+        // Load sessions
+        const { data: sessionsData, error: sessionsError } = await supabase
+          .from('sessions')
+          .select(`
+            *,
+            mentors:mentor_id (
+              users:mentor_id (first_name, last_name)
+            ),
+            mentees:mentee_id (
+              users:mentee_id (first_name, last_name)
+            )
+          `)
+          .or(`mentor_id.eq.${user.id},mentee_id.eq.${user.id}`)
+          .order('scheduled_start', { ascending: false })
+          .limit(5);
+
+        if (!sessionsError) {
+          setSessions(sessionsData || []);
         }
-      }
-
-      setUserRoles(validRoles);
-
-      // Load sessions
-      const { data: sessionsData, error: sessionsError } = await supabase
-        .from('sessions')
-        .select(`
-          *,
-          mentors:mentor_id (
-            users:mentor_id (first_name, last_name)
-          ),
-          mentees:mentee_id (
-            users:mentee_id (first_name, last_name)
-          )
-        `)
-        .or(`mentor_id.eq.${user.id},mentee_id.eq.${user.id}`)
-        .order('scheduled_start', { ascending: false })
-        .limit(5);
-
-      if (!sessionsError) {
-        setSessions(sessionsData || []);
       }
     } catch (error: any) {
       console.error('Error loading user data:', error);
@@ -230,10 +220,10 @@ export default function Dashboard() {
     return <ProfileSetup />;
   }
 
-  const isMentor = userRoles.some(role => role.role_type === 'mentor');
-  const isMentee = userRoles.some(role => role.role_type === 'mentee');
+      const isMentor = userRoles.some(role => role.role === 'mentor');
+    const isMentee = userRoles.some(role => role.role === 'mentee');
 
-  console.log('Role detection:', { isMentor, isMentee, userRoles });
+  console.log('Role detection:', { isMentor, isMentee, userRoles, userProfile, userId: user?.id });
 
   // Redirect to role-specific dashboards
   if (isMentee) {
@@ -244,6 +234,11 @@ export default function Dashboard() {
   if (isMentor) {
     console.log('Redirecting to mentor dashboard...');
     return <Navigate to="/mentor-dashboard" replace />;
+  }
+
+  // If no specific role detected but user has roles, show a message
+  if (userRoles.length > 0) {
+    console.log('User has roles but no specific mentor/mentee role detected:', userRoles);
   }
 
   console.log('No specific role detected, showing general dashboard...');
@@ -258,9 +253,9 @@ export default function Dashboard() {
                 <Logo size="xl" variant="gradient" />
               <div className="flex space-x-2">
                 {userRoles.map((role) => (
-                  <Badge key={role.role_type} variant="secondary" className="bg-blue-100 text-blue-800 px-3 py-1">
-                    {role.role_type.charAt(0).toUpperCase() + role.role_type.slice(1)}
-                  </Badge>
+                              <Badge key={role.role} variant="secondary" className="bg-blue-100 text-blue-800 px-3 py-1">
+              {role.role.charAt(0).toUpperCase() + role.role.slice(1)}
+            </Badge>
                 ))}
               </div>
             </div>
@@ -463,20 +458,15 @@ export default function Dashboard() {
                     <p className="text-gray-600">{user?.email}</p>
                     <div className="flex space-x-2 mt-2">
                       {userRoles.map((role) => (
-                        <Badge key={role.role_type} variant="secondary">
-                          {role.role_type.charAt(0).toUpperCase() + role.role_type.slice(1)}
-                        </Badge>
+                                    <Badge key={role.role} variant="secondary">
+              {role.role.charAt(0).toUpperCase() + role.role.slice(1)}
+            </Badge>
                       ))}
                     </div>
                   </div>
                 </div>
                 
-                {userProfile.bio && (
-                  <div>
-                    <h4 className="font-medium mb-2">Bio</h4>
-                    <p className="text-gray-600">{userProfile.bio}</p>
-                  </div>
-                )}
+
                 
                 <Button variant="outline">Edit Profile</Button>
               </CardContent>
@@ -493,6 +483,21 @@ export default function Dashboard() {
           onClose={() => {
             setShowSessionDetails(false);
             setSelectedSession(null);
+          }}
+        />
+      )}
+
+      {/* Role Selection Modal */}
+      {showRoleSelection && (
+        <RoleSelectionModal
+          isOpen={showRoleSelection}
+          onClose={() => setShowRoleSelection(false)}
+          onRoleSelect={(role) => {
+            setShowRoleSelection(false);
+            // Add logic to update user roles in the database
+            // For now, we'll just update the state
+            setUserRoles(prev => [...prev, { role }]);
+            console.log('Selected role:', role);
           }}
         />
       )}

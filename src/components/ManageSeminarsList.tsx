@@ -3,11 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Calendar, Clock, Users, DollarSign, Video, BookOpen, Edit, Trash2, Eye } from 'lucide-react';
+import { Calendar, Clock, Users, DollarSign, Video, BookOpen, Edit, Trash2, Eye, UserCheck } from 'lucide-react';
 import { MentorFollowService, PublicSeminar } from '@/services/mentorFollowService';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { CreateSeminarModal } from './CreateSeminarModal';
+import { SeminarParticipantsModal } from './SeminarParticipantsModal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface ManageSeminarsListProps {
@@ -21,6 +22,8 @@ export const ManageSeminarsList: React.FC<ManageSeminarsListProps> = ({
   const [loading, setLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingSeminar, setEditingSeminar] = useState<PublicSeminar | null>(null);
+  const [isParticipantsModalOpen, setIsParticipantsModalOpen] = useState(false);
+  const [selectedSeminarForParticipants, setSelectedSeminarForParticipants] = useState<PublicSeminar | null>(null);
 
   useEffect(() => {
     loadMySeminars();
@@ -29,18 +32,25 @@ export const ManageSeminarsList: React.FC<ManageSeminarsListProps> = ({
   const loadMySeminars = async () => {
     setLoading(true);
     try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('No authenticated user found');
+      }
+
       const { data, error } = await supabase
         .from('public_seminars')
         .select(`
           *,
           mentor:mentor_id (
-            users:mentors_mentor_id_fkey (
+            users (
               first_name,
               last_name,
               profile_image
             )
           )
         `)
+        .eq('mentor_id', user.id)
         .order('seminar_date', { ascending: true });
 
       if (error) throw error;
@@ -109,6 +119,11 @@ export const ManageSeminarsList: React.FC<ManageSeminarsListProps> = ({
         variant: "destructive"
       });
     }
+  };
+
+  const handleViewParticipants = (seminar: PublicSeminar) => {
+    setSelectedSeminarForParticipants(seminar);
+    setIsParticipantsModalOpen(true);
   };
 
   const formatDate = (dateString: string) => {
@@ -261,10 +276,21 @@ export const ManageSeminarsList: React.FC<ManageSeminarsListProps> = ({
                             <Clock className="h-4 w-4" />
                             {formatTime(seminar.seminar_date)} ({seminar.duration_minutes} min)
                           </div>
-                          <div className="flex items-center gap-1">
+                          <div 
+                            className="flex items-center gap-1 cursor-pointer hover:text-purple-600 transition-colors"
+                            onClick={() => handleViewParticipants(seminar)}
+                            title="Click to view participants"
+                          >
                             <Users className="h-4 w-4" />
-                            {seminar.current_participants}
-                            {seminar.max_participants && `/${seminar.max_participants}`}
+                            <span className="font-medium">
+                              {seminar.current_participants}
+                              {seminar.max_participants && `/${seminar.max_participants}`}
+                            </span>
+                            {seminar.current_participants > 0 && (
+                              <Badge className="ml-1 bg-green-100 text-green-800 text-xs">
+                                {seminar.current_participants} reserved
+                              </Badge>
+                            )}
                           </div>
                         </div>
 
@@ -281,6 +307,15 @@ export const ManageSeminarsList: React.FC<ManageSeminarsListProps> = ({
 
                       <div className="flex flex-col gap-2 ml-4">
                         <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleViewParticipants(seminar)}
+                            className="border-blue-300 text-blue-600 hover:bg-blue-50"
+                          >
+                            <UserCheck className="h-4 w-4 mr-1" />
+                            View Participants ({seminar.current_participants})
+                          </Button>
                           <Button
                             size="sm"
                             variant="outline"
@@ -333,6 +368,16 @@ export const ManageSeminarsList: React.FC<ManageSeminarsListProps> = ({
           setEditingSeminar(null);
         }}
         onSeminarCreated={loadMySeminars}
+      />
+
+      <SeminarParticipantsModal
+        isOpen={isParticipantsModalOpen}
+        onClose={() => {
+          setIsParticipantsModalOpen(false);
+          setSelectedSeminarForParticipants(null);
+        }}
+        seminarId={selectedSeminarForParticipants?.id || ''}
+        seminarTitle={selectedSeminarForParticipants?.title || ''}
       />
     </>
   );

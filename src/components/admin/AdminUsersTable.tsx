@@ -21,7 +21,7 @@ interface User {
   created_at: string;
   is_active: boolean;
   user_roles: Array<{
-    role_type: string;
+    role: string;
   }>;
 }
 
@@ -61,8 +61,8 @@ export const AdminUsersTable = ({ onStatsChange }: AdminUsersTableProps) => {
           usersData.map(async (user) => {
             const { data: roles } = await supabase
               .from('user_roles')
-              .select('role_type')
-              .eq('user_id', user.user_id);
+                      .select('role')
+        .eq('user_id', user.user_id);
 
             return {
               ...user,
@@ -192,11 +192,11 @@ export const AdminUsersTable = ({ onStatsChange }: AdminUsersTableProps) => {
                             user.user_roles.map((role, index) => (
                               <Badge 
                                 key={index} 
-                                variant={role.role_type === 'admin' ? 'destructive' : 'secondary'}
+                                variant={role.role === 'admin' ? 'destructive' : 'secondary'}
                                 className="text-xs"
                               >
                                 <Shield className="h-3 w-3 mr-1" />
-                                {role.role_type}
+                                {role.role}
                               </Badge>
                             ))
                           )}
