@@ -159,8 +159,8 @@ export default function Dashboard() {
             mentors:mentor_id (
               users:mentor_id (first_name, last_name)
             ),
-            mentees:mentee_id (
-              users:mentee_id (first_name, last_name)
+            mentees (
+              users (first_name, last_name)
             )
           `)
           .or(`mentor_id.eq.${user.id},mentee_id.eq.${user.id}`)

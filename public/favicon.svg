@@ -1,30 +1,20 @@
 <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Background circle with gradient -->
-  <defs>
-    <linearGradient id="faviconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#8B5CF6;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#7C3AED;stop-opacity:1" />
-    </linearGradient>
-    <linearGradient id="faviconInnerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#FEFCE8;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#FEF3C7;stop-opacity:1" />
-    </linearGradient>
-  </defs>
+  <!-- Perfect circle outline -->
+  <circle 
+    cx="16" 
+    cy="16" 
+    r="14" 
+    fill="none" 
+    stroke="#0F766E" 
+    stroke-width="1.6"
+  />
   
-  <!-- Main circle background -->
-  <circle cx="16" cy="16" r="15" fill="url(#faviconGradient)" stroke="#6D28D9" stroke-width="1"/>
-  
-  <!-- Mentor figure (larger) -->
-  <circle cx="16" cy="10" r="3" fill="url(#faviconInnerGradient)"/>
-  <path d="M13 14 L19 14 L17.5 19 L14.5 19 Z" fill="url(#faviconInnerGradient)"/>
-  
-  <!-- Mentee figure (smaller) -->
-  <circle cx="16" cy="22" r="2" fill="url(#faviconInnerGradient)"/>
-  <path d="M14 23.5 L18 23.5 L17 26.5 L15 26.5 Z" fill="url(#faviconInnerGradient)"/>
-  
-  <!-- Connection line -->
-  <line x1="16" y1="13" x2="16" y2="20" stroke="white" stroke-width="1" stroke-linecap="round"/>
-  
-  <!-- Growth arrow -->
-  <path d="M22 16 L25 16 L23.5 14.5 M25 16 L23.5 17.5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Outline "M" -->
+  <path 
+    d="M9.5 21 L12.5 6.5 L16 16 L19.5 6.5 L22.5 21" 
+    stroke="#0F766E" 
+    stroke-width="2.4"
+    stroke-linecap="round"
+    fill="none"
+  />
 </svg> 

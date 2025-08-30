@@ -6,97 +6,97 @@
 
 @layer base {
   :root {
-    --background: 250 20% 98%;
-    --foreground: 250 20% 10%;
+    --background: 0 0% 100%;
+    --foreground: 0 0% 9%;
 
     --card: 0 0% 100%;
-    --card-foreground: 250 20% 10%;
+    --card-foreground: 0 0% 9%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 250 20% 10%;
+    --popover-foreground: 0 0% 9%;
 
-    /* Primary: Dark purple for sophistication and creativity */
-    --primary: 250 50% 40%;
+    /* Primary: Charcoal for sophistication and readability */
+    --primary: 0 0% 9%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary: Warm yellow for energy and optimism */
-    --secondary: 45 100% 95%;
-    --secondary-foreground: 250 20% 10%;
+    /* Secondary: Sunshine yellow for energy and optimism */
+    --secondary: 56 100% 50%;
+    --secondary-foreground: 0 0% 9%;
 
-    /* Muted: Soft purple-gray for subtle elements */
-    --muted: 250 15% 96%;
-    --muted-foreground: 250 10% 40%;
+    /* Muted: Dark grey for subtle elements */
+    --muted: 210 4% 34%;
+    --muted-foreground: 210 4% 34%;
 
-    /* Accent: Bright yellow for highlights and calls-to-action */
-    --accent: 45 100% 97%;
-    --accent-foreground: 250 50% 30%;
+    /* Accent: Marigold yellow for highlights and calls-to-action */
+    --accent: 45 99% 57%;
+    --accent-foreground: 0 0% 9%;
 
     /* Destructive: Professional red */
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Border and input: Purple-tinted lines */
-    --border: 250 15% 90%;
-    --input: 250 15% 90%;
-    --ring: 250 50% 40%;
+    /* Border and input: Dark grey lines */
+    --border: 210 4% 34%;
+    --input: 210 4% 34%;
+    --ring: 0 0% 9%;
 
     --radius: 0.5rem;
 
-    /* Sidebar: Dark purple theme */
+    /* Sidebar: Clean white theme */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 250 20% 10%;
-    --sidebar-primary: 250 50% 40%;
+    --sidebar-foreground: 0 0% 9%;
+    --sidebar-primary: 0 0% 9%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 45 100% 97%;
-    --sidebar-accent-foreground: 250 50% 30%;
-    --sidebar-border: 250 15% 90%;
-    --sidebar-ring: 250 50% 40%;
+    --sidebar-accent: 56 100% 50%;
+    --sidebar-accent-foreground: 0 0% 9%;
+    --sidebar-border: 210 4% 34%;
+    --sidebar-ring: 0 0% 9%;
   }
 
   .dark {
-    --background: 250 20% 10%;
-    --foreground: 250 15% 95%;
+    --background: 0 0% 9%;
+    --foreground: 0 0% 100%;
 
-    --card: 250 20% 15%;
-    --card-foreground: 250 15% 95%;
+    --card: 0 0% 12%;
+    --card-foreground: 0 0% 100%;
 
-    --popover: 250 20% 15%;
-    --popover-foreground: 250 15% 95%;
+    --popover: 0 0% 12%;
+    --popover-foreground: 0 0% 100%;
 
-    /* Dark mode primary: Brighter purple for contrast */
-    --primary: 250 60% 60%;
-    --primary-foreground: 250 20% 10%;
+    /* Dark mode primary: Sunshine yellow for contrast */
+    --primary: 56 100% 50%;
+    --primary-foreground: 0 0% 9%;
 
-    /* Dark mode secondary: Darker yellow */
-    --secondary: 45 30% 20%;
-    --secondary-foreground: 45 100% 90%;
+    /* Dark mode secondary: Marigold yellow */
+    --secondary: 45 99% 57%;
+    --secondary-foreground: 0 0% 9%;
 
-    /* Dark mode muted: Dark purple-gray */
-    --muted: 250 20% 20%;
-    --muted-foreground: 250 10% 70%;
+    /* Dark mode muted: Light grey */
+    --muted: 0 0% 80%;
+    --muted-foreground: 0 0% 60%;
 
-    /* Dark mode accent: Dark yellow */
-    --accent: 45 30% 15%;
-    --accent-foreground: 45 100% 85%;
+    /* Dark mode accent: Bright sunshine yellow */
+    --accent: 56 100% 60%;
+    --accent-foreground: 0 0% 9%;
 
     /* Dark mode destructive: Softer red */
     --destructive: 0 62% 30%;
     --destructive-foreground: 0 0% 100%;
 
     /* Dark mode borders */
-    --border: 250 20% 25%;
-    --input: 250 20% 25%;
-    --ring: 250 60% 60%;
+    --border: 0 0% 25%;
+    --input: 0 0% 25%;
+    --ring: 56 100% 50%;
 
     /* Dark mode sidebar */
-    --sidebar-background: 250 20% 10%;
-    --sidebar-foreground: 250 15% 95%;
-    --sidebar-primary: 250 60% 60%;
-    --sidebar-primary-foreground: 250 20% 10%;
-    --sidebar-accent: 45 30% 15%;
-    --sidebar-accent-foreground: 45 100% 85%;
-    --sidebar-border: 250 20% 25%;
-    --sidebar-ring: 250 60% 60%;
+    --sidebar-background: 0 0% 9%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 56 100% 50%;
+    --sidebar-primary-foreground: 0 0% 9%;
+    --sidebar-accent: 45 99% 57%;
+    --sidebar-accent-foreground: 0 0% 9%;
+    --sidebar-border: 0 0% 25%;
+    --sidebar-ring: 56 100% 50%;
   }
 }
 
@@ -114,28 +114,28 @@
 @layer components {
   /* Custom gradient backgrounds */
   .bg-gradient-primary {
-    background: linear-gradient(135deg, hsl(250 50% 40%) 0%, hsl(250 50% 30%) 100%);
+    background: linear-gradient(135deg, #161616 0%, #54585A 100%);
   }
   
   .bg-gradient-secondary {
-    background: linear-gradient(135deg, hsl(45 100% 97%) 0%, hsl(45 100% 95%) 100%);
+    background: linear-gradient(135deg, #FFE600 0%, #FEC925 100%);
   }
   
   .bg-gradient-card {
-    background: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(250 20% 98%) 100%);
+    background: linear-gradient(135deg, #FFFFFF 0%, #F8F9FA 100%);
   }
   
   /* Custom button styles */
   .btn-primary-gradient {
-    background: linear-gradient(135deg, hsl(250 50% 40%) 0%, hsl(250 50% 30%) 100%);
+    background: linear-gradient(135deg, #161616 0%, #54585A 100%);
     color: white;
     transition: all 0.2s ease;
   }
   
   .btn-primary-gradient:hover {
-    background: linear-gradient(135deg, hsl(250 50% 30%) 0%, hsl(250 50% 20%) 100%);
+    background: linear-gradient(135deg, #54585A 0%, #161616 100%);
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(147, 51, 234, 0.3);
+    box-shadow: 0 4px 12px rgba(22, 22, 22, 0.3);
   }
   
   /* Custom card styles */
@@ -153,7 +153,7 @@
   
   /* Custom text gradients */
   .text-gradient-primary {
-    background: linear-gradient(135deg, hsl(250 50% 40%) 0%, hsl(250 50% 30%) 100%);
+    background: linear-gradient(135deg, #161616 0%, #54585A 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -162,13 +162,13 @@
   /* Custom border styles */
   .border-gradient {
     border: 1px solid;
-    border-image: linear-gradient(135deg, hsl(250 50% 40%), hsl(45 100% 50%)) 1;
+    border-image: linear-gradient(135deg, #161616, #FFE600) 1;
   }
   
   /* Custom focus styles */
   .focus-ring-primary:focus {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.1);
+    box-shadow: 0 0 0 3px rgba(255, 230, 0, 0.2);
   }
   
   /* Custom loading states */
@@ -188,61 +188,61 @@
   
   /* Custom badge styles */
   .badge-success {
-    background: linear-gradient(135deg, hsl(142 76% 36%) 0%, hsl(142 76% 26%) 100%);
+    background: linear-gradient(135deg, #10B981 0%, #059669 100%);
     color: white;
   }
   
   .badge-warning {
-    background: linear-gradient(135deg, hsl(45 100% 60%) 0%, hsl(45 100% 50%) 100%);
-    color: hsl(45 100% 10%);
+    background: linear-gradient(135deg, #FFE600 0%, #FEC925 100%);
+    color: #161616;
   }
   
   .badge-info {
-    background: linear-gradient(135deg, hsl(250 50% 40%) 0%, hsl(250 50% 30%) 100%);
+    background: linear-gradient(135deg, #161616 0%, #54585A 100%);
     color: white;
   }
   
-  /* Purple theme enhancements */
-  .bg-purple-gradient {
-    background: linear-gradient(135deg, hsl(250 50% 40%) 0%, hsl(250 50% 30%) 100%);
+  /* Brand theme enhancements */
+  .bg-brand-gradient {
+    background: linear-gradient(135deg, #161616 0%, #54585A 100%);
   }
   
-  .bg-purple-light {
-    background: hsl(250 15% 96%);
+  .bg-brand-light {
+    background: #F8F9FA;
   }
   
-  .text-purple-primary {
-    color: hsl(250 50% 40%);
+  .text-brand-primary {
+    color: #161616;
   }
   
-  .border-purple-accent {
-    border-color: hsl(250 50% 40%);
+  .border-brand-accent {
+    border-color: #FFE600;
   }
   
   /* Yellow theme enhancements */
   .bg-yellow-gradient {
-    background: linear-gradient(135deg, hsl(45 100% 60%) 0%, hsl(45 100% 50%) 100%);
+    background: linear-gradient(135deg, #FFE600 0%, #FEC925 100%);
   }
   
   .bg-yellow-light {
-    background: hsl(45 100% 97%);
+    background: #FFFBF0;
   }
   
   .text-yellow-primary {
-    color: hsl(45 100% 50%);
+    color: #FFE600;
   }
   
   .border-yellow-accent {
-    border-color: hsl(45 100% 50%);
+    border-color: #FEC925;
   }
   
-  /* Purple and yellow combination styles */
-  .bg-purple-yellow-gradient {
-    background: linear-gradient(135deg, hsl(250 50% 40%) 0%, hsl(45 100% 60%) 100%);
+  /* Brand combination styles */
+  .bg-brand-yellow-gradient {
+    background: linear-gradient(135deg, #161616 0%, #FFE600 100%);
   }
   
-  .text-purple-yellow-gradient {
-    background: linear-gradient(135deg, hsl(250 50% 40%) 0%, hsl(45 100% 50%) 100%);
+  .text-brand-yellow-gradient {
+    background: linear-gradient(135deg, #161616 0%, #FFE600 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;

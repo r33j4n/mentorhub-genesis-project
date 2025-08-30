@@ -9,13 +9,23 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/components/ui/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Users, User, Briefcase, Target, ArrowRight, CheckCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Users, User, Briefcase, Target, ArrowRight, CheckCircle, Stethoscope, Heart, Scale, GraduationCap, Palette, Dumbbell, Calculator, Home, Megaphone, Users2, Wrench, Music, HandHeart, Leaf, Building2, Globe, Shield, Search, X } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
 
 interface ExpertiseArea {
   id: string;
   name: string;
   description: string | null;
+  domain_id?: string;
+}
+
+interface ProfessionalDomain {
+  id: string;
+  name: string;
+  description: string;
+  display_order: number;
 }
 
 export const ProfileSetup = () => {
@@ -24,6 +34,9 @@ export const ProfileSetup = () => {
   const [userType, setUserType] = useState<'mentor' | 'mentee' | null>(null);
   const [loading, setLoading] = useState(false);
   const [expertiseAreas, setExpertiseAreas] = useState<ExpertiseArea[]>([]);
+  const [professionalDomains, setProfessionalDomains] = useState<ProfessionalDomain[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDomain, setSelectedDomain] = useState<string>('all');
   
   // Profile data
   const [profileData, setProfileData] = useState({
@@ -44,6 +57,7 @@ export const ProfileSetup = () => {
 
   useEffect(() => {
     loadExpertiseAreas();
+    loadProfessionalDomains();
     loadUserProfile();
   }, [user]);
 
@@ -55,6 +69,8 @@ export const ProfileSetup = () => {
     const { data, error } = await supabase
       .from('expertise_areas')
       .select('*')
+      .eq('is_active', true)
+      .order('display_order', { ascending: true })
       .order('name', { ascending: true });
 
     if (error) {
@@ -65,6 +81,25 @@ export const ProfileSetup = () => {
       });
     } else {
       setExpertiseAreas(data || []);
+    }
+  };
+
+  const loadProfessionalDomains = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('professional_domains')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_order', { ascending: true });
+
+      if (error) {
+        console.error('Error loading professional domains:', error);
+        return;
+      }
+
+      setProfessionalDomains(data || []);
+    } catch (error) {
+      console.error('Error loading professional domains:', error);
     }
   };
 
@@ -282,6 +317,95 @@ export const ProfileSetup = () => {
     }
   };
 
+  const getDomainIcon = (domainName: string) => {
+    const iconMap: { [key: string]: React.ReactNode } = {
+      'Healthcare & Medicine': <Stethoscope className="h-5 w-5" />,
+      'Mental Health & Counseling': <Heart className="h-5 w-5" />,
+      'Business & Professional Development': <Briefcase className="h-5 w-5" />,
+      'Legal & Professional Services': <Scale className="h-5 w-5" />,
+      'Education & Training': <GraduationCap className="h-5 w-5" />,
+      'Technology & IT': <Wrench className="h-5 w-5" />,
+      'Creative & Media': <Palette className="h-5 w-5" />,
+      'Fitness & Wellness': <Dumbbell className="h-5 w-5" />,
+      'Finance & Investment': <Calculator className="h-5 w-5" />,
+      'Real Estate': <Home className="h-5 w-5" />,
+      'Marketing & Sales': <Megaphone className="h-5 w-5" />,
+      'Human Resources': <Users2 className="h-5 w-5" />,
+      'Engineering': <Wrench className="h-5 w-5" />,
+      'Science & Research': <Wrench className="h-5 w-5" />,
+      'Arts & Entertainment': <Music className="h-5 w-5" />,
+      'Social Services': <HandHeart className="h-5 w-5" />,
+      'Environmental & Sustainability': <Leaf className="h-5 w-5" />,
+      'Government & Public Policy': <Building2 className="h-5 w-5" />,
+      'Nonprofit & Social Impact': <Globe className="h-5 w-5" />,
+      'Other': <Shield className="h-5 w-5" />
+    };
+    return iconMap[domainName] || <Users className="h-5 w-5" />;
+  };
+
+  const getFilteredExpertiseAreas = () => {
+    let filtered = expertiseAreas;
+
+    // Filter by search term
+    if (searchTerm) {
+      filtered = filtered.filter(area => 
+        area.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        area.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Filter by domain
+    if (selectedDomain !== 'all') {
+      filtered = filtered.filter(area => area.domain_id === selectedDomain);
+    }
+
+    return filtered;
+  };
+
+  const getExpertiseAreasByDomain = () => {
+    const filtered = getFilteredExpertiseAreas();
+    const grouped: { [key: string]: ExpertiseArea[] } = {};
+
+    filtered.forEach(area => {
+      const domain = professionalDomains.find(d => d.id === area.domain_id);
+      const domainName = domain?.name || 'Other';
+      
+      if (!grouped[domainName]) {
+        grouped[domainName] = [];
+      }
+      grouped[domainName].push(area);
+    });
+
+    return grouped;
+  };
+
+  const handleExpertiseToggle = (areaId: string, checked: boolean) => {
+    if (checked) {
+      setMentorData(prev => ({
+        ...prev,
+        selectedExpertise: [...prev.selectedExpertise, areaId]
+      }));
+    } else {
+      setMentorData(prev => ({
+        ...prev,
+        selectedExpertise: prev.selectedExpertise.filter(id => id !== areaId)
+      }));
+    }
+  };
+
+  const clearSelectedExpertise = () => {
+    setMentorData(prev => ({
+      ...prev,
+      selectedExpertise: []
+    }));
+  };
+
+  const getSelectedExpertiseNames = () => {
+    return mentorData.selectedExpertise.map(id => 
+      expertiseAreas.find(area => area.id === id)?.name
+    ).filter(Boolean);
+  };
+
   if (step === 1) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-100 to-purple-100 flex items-center justify-center p-4">
@@ -448,33 +572,105 @@ export const ProfileSetup = () => {
                 />
               </div>
               <div>
-                <Label>Expertise Areas</Label>
+                <div className="flex items-center justify-between mb-4">
+                  <Label className="text-base font-semibold">Expertise Areas</Label>
+                  {mentorData.selectedExpertise.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearSelectedExpertise}
+                      className="text-xs"
+                    >
+                      <X className="h-3 w-3 mr-1" />
+                      Clear All
+                    </Button>
+                  )}
+                </div>
+
+                {/* Selected Expertise Display */}
+                {mentorData.selectedExpertise.length > 0 && (
+                  <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="text-sm font-medium text-blue-900 mb-2">
+                      Selected ({mentorData.selectedExpertise.length}):
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {getSelectedExpertiseNames().map((name, index) => (
+                        <Badge key={index} variant="secondary" className="bg-blue-100 text-blue-800">
+                          {name}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Search and Filter */}
+                <div className="mb-4 space-y-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Search expertise areas..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  
+                  <Select value={selectedDomain} onValueChange={setSelectedDomain}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter by domain" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Domains</SelectItem>
+                      {professionalDomains.map((domain) => (
+                        <SelectItem key={domain.id} value={domain.id}>
+                          <div className="flex items-center gap-2">
+                            {getDomainIcon(domain.name)}
+                            {domain.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 {expertiseAreas.length === 0 ? (
                   <div className="text-sm text-red-500 mt-2">No expertise areas found. Please contact support or add some in the admin panel.</div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-2 mt-2">
-                    {expertiseAreas.map((area) => (
-                      <div key={area.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={area.id}
-                          checked={mentorData.selectedExpertise.includes(area.id)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setMentorData(prev => ({
-                                ...prev,
-                                selectedExpertise: [...prev.selectedExpertise, area.id]
-                              }));
-                            } else {
-                              setMentorData(prev => ({
-                                ...prev,
-                                selectedExpertise: prev.selectedExpertise.filter(id => id !== area.id)
-                              }));
-                            }
-                          }}
-                        />
-                        <Label htmlFor={area.id} className="text-sm">{area.name}</Label>
+                  <div className="space-y-4 max-h-96 overflow-y-auto">
+                    {Object.entries(getExpertiseAreasByDomain()).map(([domainName, areas]) => (
+                      <div key={domainName} className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          {getDomainIcon(domainName)}
+                          <h4 className="font-semibold text-gray-900">{domainName}</h4>
+                          <Badge variant="outline" className="text-xs">
+                            {areas.length}
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          {areas.map((area) => (
+                            <div key={area.id} className="flex items-center space-x-2 p-2 rounded hover:bg-gray-50">
+                              <Checkbox
+                                id={area.id}
+                                checked={mentorData.selectedExpertise.includes(area.id)}
+                                onCheckedChange={(checked) => handleExpertiseToggle(area.id, checked as boolean)}
+                              />
+                              <Label 
+                                htmlFor={area.id} 
+                                className="text-sm cursor-pointer flex-1"
+                              >
+                                {area.name}
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {getFilteredExpertiseAreas().length === 0 && searchTerm && (
+                  <div className="text-center py-4 text-gray-500">
+                    No expertise areas found matching "{searchTerm}"
                   </div>
                 )}
               </div>

@@ -237,11 +237,33 @@ export class MentorFollowService {
 
       console.log('Getting all public seminars for user:', currentUserId);
 
-      // Get all public seminars
+      // Optimized query with better performance
       const { data, error } = await supabase
         .from('public_seminars')
         .select(`
-          *,
+          id,
+          mentor_id,
+          title,
+          description,
+          seminar_date,
+          duration_minutes,
+          max_participants,
+          current_participants,
+          is_free,
+          price,
+          zoom_meeting_id,
+          zoom_password,
+          status,
+          speaker_name,
+          speaker_title,
+          speaker_bio,
+          speaker_image,
+          company_name,
+          company_logo,
+          company_website,
+          is_company_sponsored,
+          created_at,
+          updated_at,
           mentor:mentor_id (
             users (
               first_name,
@@ -251,11 +273,16 @@ export class MentorFollowService {
           )
         `)
         .gte('seminar_date', new Date().toISOString())
-        .order('seminar_date', { ascending: true });
+        .eq('status', 'scheduled')
+        .order('seminar_date', { ascending: true })
+        .limit(50); // Limit results for better performance
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
 
-      console.log('All public seminars:', data);
+      console.log(`Loaded ${data?.length || 0} public seminars`);
       return data || [];
     } catch (error) {
       console.error('Error getting public seminars:', error);

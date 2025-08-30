@@ -51,7 +51,7 @@ export const AdminMenteesTable = ({ onStatsChange }: AdminMenteesTableProps) => 
         .from('mentees')
         .select(`
           *,
-          users:mentees_mentee_id_fkey (
+          users (
             first_name,
             last_name,
             email,

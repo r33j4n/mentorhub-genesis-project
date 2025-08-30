@@ -117,8 +117,8 @@ export const FollowMentorButton: React.FC<FollowMentorButtonProps> = ({
       disabled={isLoading}
       className={`transition-all duration-200 ${
         isFollowing 
-          ? 'bg-purple-600 hover:bg-purple-700 text-white border-purple-600' 
-          : 'hover:bg-purple-50 hover:border-purple-300 hover:text-purple-600'
+          ? 'bg-black hover:bg-gray-800 text-white border-black font-semibold' 
+          : 'hover:bg-gray-100 hover:border-black hover:text-black'
       } ${className}`}
     >
       {isFollowing ? (

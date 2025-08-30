@@ -119,7 +119,7 @@ export class ZoomService {
       const { data, error } = await supabase
         .from('sessions')
         .select('zoom_meeting_id, zoom_password, zoom_join_url, zoom_start_url')
-        .eq('session_id', sessionId)
+        .eq('id', sessionId)
         .single();
 
       if (error) throw error;
@@ -148,7 +148,7 @@ export class ZoomService {
           status: 'cancelled',
           updated_at: new Date().toISOString()
         })
-        .eq('session_id', sessionId);
+        .eq('id', sessionId);
 
       if (error) throw error;
     } catch (error) {
@@ -165,7 +165,7 @@ export class ZoomService {
           status: 'completed',
           updated_at: new Date().toISOString()
         })
-        .eq('session_id', sessionId);
+        .eq('id', sessionId);
 
       if (error) throw error;
     } catch (error) {
@@ -183,7 +183,7 @@ export class ZoomService {
           scheduled_end: newEndTime,
           updated_at: new Date().toISOString()
         })
-        .eq('session_id', sessionId);
+        .eq('id', sessionId);
 
       if (error) throw error;
     } catch (error) {

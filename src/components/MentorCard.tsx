@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Star, MapPin, Clock, DollarSign, Award, MessageCircle, Calendar, CheckCircle, Eye } from 'lucide-react';
+import { Star, MapPin, Clock, DollarSign, Award, MessageCircle, Calendar, CheckCircle, Eye, Shield } from 'lucide-react';
 import { MentorProfileModal } from './MentorProfileModal';
 import { FollowMentorButton } from './FollowMentorButton';
 
@@ -13,18 +13,28 @@ interface MentorCardProps {
   mentor: {
     mentor_id: string;
     hourly_rate: number;
+    experience_years: number;
     rating: number;
-    total_sessions: number;
-    is_approved: boolean;
+    reviews_count: number;
+    professional_title?: string;
+    years_of_practice?: number;
+    is_licensed?: boolean;
+    license_verified?: boolean;
+    consultation_fee?: number;
+    accepts_insurance?: boolean;
+    languages_spoken?: string[];
+    consultation_type?: string;
     users: {
       first_name: string;
       last_name: string;
+      bio: string;
       profile_image: string;
+      timezone: string;
     };
     mentor_expertise: Array<{
       expertise_areas: {
         name: string;
-        description: string;
+        category: string;
       };
     }>;
   };
@@ -103,9 +113,14 @@ export const MentorCard = ({ mentor, onBookSession }: MentorCardProps) => {
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <h3 className="font-bold text-xl text-gray-900 truncate group-hover:text-blue-600 transition-colors">
-                      {user.first_name} {user.last_name}
-                    </h3>
+                                      <h3 className="font-bold text-xl text-gray-900 truncate group-hover:text-blue-600 transition-colors">
+                    {user.first_name} {user.last_name}
+                  </h3>
+                  {mentor.professional_title && (
+                    <p className="text-sm text-gray-600 font-medium">
+                      {mentor.professional_title}
+                    </p>
+                  )}
                     
                     <div className="flex items-center gap-2 mt-1">
                       <div className="flex">
@@ -124,7 +139,7 @@ export const MentorCard = ({ mentor, onBookSession }: MentorCardProps) => {
                         {mentor.rating.toFixed(1)}
                       </span>
                       <span className="text-sm text-gray-500">
-                        ({mentor.total_sessions} sessions)
+                        ({mentor.reviews_count} reviews)
                       </span>
                     </div>
                   </div>
@@ -142,12 +157,24 @@ export const MentorCard = ({ mentor, onBookSession }: MentorCardProps) => {
                 <div className="flex items-center gap-4 mt-3 text-sm text-gray-600">
                   <div className="flex items-center">
                     <Award className="h-4 w-4 mr-1 text-blue-500" />
-                    <span>{mentor.total_sessions}+ sessions</span>
+                    <span>{mentor.experience_years}+ years</span>
                   </div>
+                  {mentor.is_licensed && mentor.license_verified && (
+                    <div className="flex items-center">
+                      <Shield className="h-4 w-4 mr-1 text-green-500" />
+                      <span className="text-xs text-green-600">Licensed</span>
+                    </div>
+                  )}
                   <div className="flex items-center">
                     <MapPin className="h-4 w-4 mr-1 text-green-500" />
                     <span>Available</span>
                   </div>
+                  {mentor.accepts_insurance && (
+                    <div className="flex items-center">
+                      <DollarSign className="h-4 w-4 mr-1 text-blue-500" />
+                      <span className="text-xs text-blue-600">Accepts Insurance</span>
+                    </div>
+                  )}
                   <div className={`flex items-center ${availability.color}`}>
                     <CheckCircle className="h-4 w-4 mr-1" />
                     <span className="text-xs">{availability.text}</span>
@@ -171,7 +198,7 @@ export const MentorCard = ({ mentor, onBookSession }: MentorCardProps) => {
             <div className="flex items-center justify-between">
               <div className="text-sm font-medium text-gray-900">Expertise</div>
               <Badge variant="outline" className="text-xs">
-                {mentor_expertise.length} areas
+                {mentor_expertise.length} specialties
               </Badge>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -191,16 +218,16 @@ export const MentorCard = ({ mentor, onBookSession }: MentorCardProps) => {
           {/* Quick Stats */}
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="bg-blue-50 rounded-lg p-2">
-              <div className="text-xs text-blue-600 font-medium">Sessions</div>
-              <div className="text-lg font-bold text-blue-700">50+</div>
+              <div className="text-xs text-blue-600 font-medium">Experience</div>
+              <div className="text-lg font-bold text-blue-700">{mentor.experience_years}+ yrs</div>
             </div>
             <div className="bg-green-50 rounded-lg p-2">
               <div className="text-xs text-green-600 font-medium">Success Rate</div>
               <div className="text-lg font-bold text-green-700">95%</div>
             </div>
-            <div className="bg-purple-50 rounded-lg p-2">
-              <div className="text-xs text-purple-600 font-medium">Response</div>
-              <div className="text-lg font-bold text-purple-700">2h</div>
+            <div className="bg-brand-sunshine-yellow/20 rounded-lg p-2">
+              <div className="text-xs text-brand-charcoal font-medium">Response</div>
+              <div className="text-lg font-bold text-brand-charcoal">2h</div>
             </div>
           </div>
           
@@ -208,7 +235,7 @@ export const MentorCard = ({ mentor, onBookSession }: MentorCardProps) => {
           <div className="flex flex-col sm:flex-row gap-2">
             <Button 
               onClick={handleBookSessionClick} 
-              className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 rounded-lg transition-all duration-300 transform hover:scale-105"
+              className="flex-1 bg-black hover:bg-gray-800 text-white font-semibold py-3 rounded-lg transition-all duration-300 transform hover:scale-105"
             >
               <Calendar className="h-4 w-4 mr-2" />
               Book Session
@@ -224,7 +251,7 @@ export const MentorCard = ({ mentor, onBookSession }: MentorCardProps) => {
               <Button 
                 variant="outline" 
                 onClick={handleViewProfileClick}
-                className="flex-1 sm:flex-none px-3 border-blue-200 text-blue-600 hover:bg-blue-50 text-sm"
+                className="flex-1 sm:flex-none px-3 border-black text-black hover:bg-gray-100 text-sm"
               >
                 <Eye className="h-4 w-4 mr-1" />
                 View Profile
@@ -232,7 +259,7 @@ export const MentorCard = ({ mentor, onBookSession }: MentorCardProps) => {
               <Button 
                 variant="outline" 
                 onClick={handleMessageClick}
-                className="flex-1 sm:flex-none px-3 border-blue-200 text-blue-600 hover:bg-blue-50 text-sm"
+                className="flex-1 sm:flex-none px-3 border-black text-black hover:bg-gray-100 text-sm"
               >
                 <MessageCircle className="h-4 w-4 mr-1" />
                 Message

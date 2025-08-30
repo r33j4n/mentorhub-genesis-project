@@ -1,0 +1,271 @@
+-- Setup BigQuery Wrapper for advanced recommendations
+
+-- Enable required extensions
+CREATE EXTENSION IF NOT EXISTS wrappers;
+CREATE EXTENSION IF NOT EXISTS supabase_vault;
+
+-- Create BigQuery foreign data wrapper
+CREATE SERVER IF NOT EXISTS bigquery_server
+  FOREIGN DATA WRAPPER bigquery
+  OPTIONS (
+    project_id 'mentorhub-analytics',
+    dataset_id 'mentor_recommendations',
+    credentials 'vault://bigquery-credentials'
+  );
+
+-- Create schema for BigQuery tables
+CREATE SCHEMA IF NOT EXISTS bigquery_recommendations;
+
+-- Create foreign tables for BigQuery data
+CREATE FOREIGN TABLE IF NOT EXISTS bigquery_recommendations.user_profiles (
+  user_id TEXT,
+  skills TEXT[],
+  experience_level TEXT,
+  goals TEXT,
+  session_history JSONB,
+  preferences JSONB,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+) SERVER bigquery_server;
+
+CREATE FOREIGN TABLE IF NOT EXISTS bigquery_recommendations.mentor_profiles (
+  mentor_id TEXT,
+  expertise_areas TEXT[],
+  session_success_rate DECIMAL,
+  mentee_satisfaction DECIMAL,
+  response_time_minutes INTEGER,
+  availability_score DECIMAL,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+) SERVER bigquery_server;
+
+CREATE FOREIGN TABLE IF NOT EXISTS bigquery_recommendations.interaction_history (
+  interaction_id TEXT,
+  mentee_id TEXT,
+  mentor_id TEXT,
+  session_id TEXT,
+  interaction_type TEXT,
+  success_score DECIMAL,
+  duration_minutes INTEGER,
+  feedback_rating INTEGER,
+  created_at TIMESTAMP
+) SERVER bigquery_server;
+
+-- Create advanced recommendation function using BigQuery
+CREATE OR REPLACE FUNCTION get_advanced_mentor_recommendations(
+  p_mentee_id UUID,
+  p_skills_needed TEXT[],
+  p_experience_level TEXT,
+  p_budget_min DECIMAL DEFAULT 0,
+  p_budget_max DECIMAL DEFAULT 1000,
+  p_limit INTEGER DEFAULT 10
+)
+RETURNS TABLE (
+  mentor_id UUID,
+  similarity_score DOUBLE PRECISION,
+  match_reason TEXT,
+  confidence_score DOUBLE PRECISION,
+  recommendation_type TEXT
+) AS $$
+BEGIN
+  RETURN QUERY
+  WITH mentee_profile AS (
+    -- Get mentee profile from BigQuery
+    SELECT 
+      user_id,
+      skills,
+      experience_level,
+      goals,
+      session_history,
+      preferences
+    FROM bigquery_recommendations.user_profiles
+    WHERE user_id = p_mentee_id::TEXT
+  ),
+  mentor_analytics AS (
+    -- Get mentor analytics from BigQuery
+    SELECT 
+      mp.mentor_id,
+      mp.expertise_areas,
+      mp.session_success_rate,
+      mp.mentee_satisfaction,
+      mp.response_time_minutes,
+      mp.availability_score,
+      -- Calculate collaborative filtering score
+      (SELECT AVG(ih.success_score) 
+       FROM bigquery_recommendations.interaction_history ih
+       WHERE ih.mentor_id = mp.mentor_id
+       AND ih.mentee_id IN (
+         SELECT DISTINCT ih2.mentee_id 
+         FROM bigquery_recommendations.interaction_history ih2
+         WHERE ih2.mentor_id IN (
+           SELECT DISTINCT ih3.mentor_id 
+           FROM bigquery_recommendations.interaction_history ih3
+           WHERE ih3.mentee_id = p_mentee_id::TEXT
+         )
+       )
+      ) as collaborative_score
+    FROM bigquery_recommendations.mentor_profiles mp
+  ),
+  local_mentors AS (
+    -- Get local mentor data
+    SELECT 
+      m.mentor_id,
+      m.hourly_rate,
+      m.rating,
+      m.total_sessions_completed,
+      m.is_approved
+    FROM mentors m
+    WHERE m.is_approved = true
+      AND m.hourly_rate BETWEEN p_budget_min AND p_budget_max * 1.5
+  )
+  SELECT 
+    lm.mentor_id,
+    (
+      -- Content-based filtering (40% weight)
+      (CASE 
+        WHEN array_length(p_skills_needed, 1) > 0 THEN
+          (SELECT COALESCE(AVG(
+            CASE 
+              WHEN ea.description ILIKE ANY (SELECT '%' || skill || '%' FROM unnest(p_skills_needed) AS skill) 
+              THEN 1.0 
+              ELSE 0.0 
+            END
+          ), 0.0)
+          FROM mentor_expertise me
+          JOIN expertise_areas ea ON me.area_id = ea.id
+          WHERE me.mentor_id = lm.mentor_id)
+        ELSE 0.5
+      END * 0.4) +
+      
+      -- Collaborative filtering (30% weight)
+      (COALESCE(ma.collaborative_score, 0.5) * 0.3) +
+      
+      -- Success rate bonus (20% weight)
+      (COALESCE(ma.session_success_rate, 0.5) * 0.2) +
+      
+      -- Response time bonus (10% weight)
+      (CASE 
+        WHEN ma.response_time_minutes <= 60 THEN 1.0
+        WHEN ma.response_time_minutes <= 120 THEN 0.8
+        WHEN ma.response_time_minutes <= 240 THEN 0.6
+        ELSE 0.4
+      END * 0.1)
+    )::DOUBLE PRECISION AS similarity_score,
+    
+    -- Generate match reason
+    CASE 
+      WHEN array_length(p_skills_needed, 1) > 0 THEN
+        'Matches ' || array_length(p_skills_needed, 1) || ' skills + ML-powered recommendation'
+      ELSE 'ML-powered recommendation based on similar users'
+    END AS match_reason,
+    
+    -- Confidence score based on data quality
+    (CASE 
+      WHEN ma.collaborative_score IS NOT NULL AND ma.session_success_rate IS NOT NULL THEN 0.95
+      WHEN ma.collaborative_score IS NOT NULL OR ma.session_success_rate IS NOT NULL THEN 0.85
+      ELSE 0.75
+    END)::DOUBLE PRECISION AS confidence_score,
+    
+    -- Recommendation type
+    CASE 
+      WHEN ma.collaborative_score IS NOT NULL THEN 'Hybrid (Content + Collaborative)'
+      WHEN array_length(p_skills_needed, 1) > 0 THEN 'Content-Based'
+      ELSE 'Popular'
+    END AS recommendation_type
+    
+  FROM local_mentors lm
+  LEFT JOIN mentor_analytics ma ON ma.mentor_id = lm.mentor_id::TEXT
+  ORDER BY similarity_score DESC, confidence_score DESC
+  LIMIT p_limit;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create function to sync data to BigQuery
+CREATE OR REPLACE FUNCTION sync_data_to_bigquery()
+RETURNS void AS $$
+BEGIN
+  -- Sync user profiles
+  INSERT INTO bigquery_recommendations.user_profiles (
+    user_id, skills, experience_level, goals, session_history, preferences, created_at, updated_at
+  )
+  SELECT 
+    u.user_id,
+    ARRAY[]::TEXT[] as skills, -- Will be populated from mentee_requirements
+    'intermediate' as experience_level, -- Default
+    '' as goals, -- Will be populated from mentee_requirements
+    '[]'::JSONB as session_history, -- Will be populated from sessions
+    '{}'::JSONB as preferences, -- Will be populated from mentee_requirements
+    u.created_at,
+    u.updated_at
+  FROM users u
+  ON CONFLICT (user_id) DO UPDATE SET
+    updated_at = EXCLUDED.updated_at;
+
+  -- Sync mentor profiles
+  INSERT INTO bigquery_recommendations.mentor_profiles (
+    mentor_id, expertise_areas, session_success_rate, mentee_satisfaction, 
+    response_time_minutes, availability_score, created_at, updated_at
+  )
+  SELECT 
+    m.mentor_id::TEXT,
+    ARRAY[]::TEXT[] as expertise_areas, -- Will be populated from mentor_expertise
+    COALESCE(m.rating / 5.0, 0.5) as session_success_rate,
+    COALESCE(m.rating / 5.0, 0.5) as mentee_satisfaction,
+    120 as response_time_minutes, -- Default 2 hours
+    0.8 as availability_score, -- Default
+    m.created_at,
+    m.updated_at
+  FROM mentors m
+  ON CONFLICT (mentor_id) DO UPDATE SET
+    updated_at = EXCLUDED.updated_at;
+
+  -- Sync interaction history
+  INSERT INTO bigquery_recommendations.interaction_history (
+    interaction_id, mentee_id, mentor_id, session_id, interaction_type, 
+    success_score, duration_minutes, feedback_rating, created_at
+  )
+  SELECT 
+    s.id::TEXT as interaction_id,
+    s.mentee_id::TEXT,
+    s.mentor_id::TEXT,
+    s.id::TEXT as session_id,
+    'session' as interaction_type,
+    CASE 
+      WHEN s.status = 'completed' THEN 1.0
+      WHEN s.status = 'confirmed' THEN 0.8
+      WHEN s.status = 'requested' THEN 0.5
+      ELSE 0.0
+    END as success_score,
+    COALESCE(s.duration_minutes, 60) as duration_minutes,
+    COALESCE(s.rating, 0) as feedback_rating,
+    s.created_at
+  FROM sessions s
+  ON CONFLICT (interaction_id) DO NOTHING;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create trigger to automatically sync data
+CREATE OR REPLACE FUNCTION trigger_sync_to_bigquery()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Schedule sync (in production, you'd use a job queue)
+  PERFORM sync_data_to_bigquery();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create triggers for automatic sync
+CREATE TRIGGER IF NOT EXISTS sync_users_to_bigquery
+  AFTER INSERT OR UPDATE ON users
+  FOR EACH ROW
+  EXECUTE FUNCTION trigger_sync_to_bigquery();
+
+CREATE TRIGGER IF NOT EXISTS sync_mentors_to_bigquery
+  AFTER INSERT OR UPDATE ON mentors
+  FOR EACH ROW
+  EXECUTE FUNCTION trigger_sync_to_bigquery();
+
+CREATE TRIGGER IF NOT EXISTS sync_sessions_to_bigquery
+  AFTER INSERT OR UPDATE ON sessions
+  FOR EACH ROW
+  EXECUTE FUNCTION trigger_sync_to_bigquery(); 

@@ -7,8 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Users, Calendar, Star, DollarSign, LogOut, TrendingUp, Clock, Video, MessageCircle, BookOpen } from 'lucide-react';
+import { Users, Calendar, Star, DollarSign, LogOut, TrendingUp, Clock, Video, MessageCircle, BookOpen, RefreshCw } from 'lucide-react';
 import { ManageSeminarsList } from '@/components/ManageSeminarsList';
+import { IdeasList } from '@/components/IdeasList';
+import { MentorIdeaContacts } from '@/components/MentorIdeaContacts';
 
 import { toast } from '@/components/ui/use-toast';
 import { UserProfileModal } from '@/components/UserProfileModal';
@@ -35,6 +37,9 @@ interface MentorStats {
 }
 
 export default function MentorDashboard() {
+  // Version identifier to help with cache debugging
+  console.log('MentorDashboard version: 2024-01-15-v3');
+  
   const { user, signOut } = useAuth();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isMentor, setIsMentor] = useState(false);
@@ -65,7 +70,7 @@ export default function MentorDashboard() {
             variant: "destructive"
           });
         }
-      }, 8000); // 8 second timeout
+      }, 5000); // Reduced from 8 seconds to 5 seconds
 
       loadUserData();
 
@@ -73,11 +78,13 @@ export default function MentorDashboard() {
     }
   }, [user]);
 
-  const loadUserData = async () => {
+  const loadUserData = async (retryCount = 0) => {
     if (!user) return;
 
+    const maxRetries = 2;
+
     try {
-      console.log('Loading mentor data for user:', user.id);
+      console.log(`Loading mentor data for user: ${user.id} (attempt ${retryCount + 1})`);
       
       // Simplified role check - just check if user exists in mentors table
       const { data: mentorData, error: mentorError } = await supabase
@@ -107,7 +114,7 @@ export default function MentorDashboard() {
 
         if (createMentorError) {
           console.error('Error creating mentor record:', createMentorError);
-          throw createMentorError;
+          // Don't throw error, just log it and continue
         } else {
           console.log('Mentor record created successfully');
         }
@@ -115,75 +122,129 @@ export default function MentorDashboard() {
 
       setIsMentor(true);
 
-      // Load user profile (simplified)
-      const { data: profile, error: profileError } = await supabase
-        .from('users')
-        .select('user_id, first_name, last_name, email, profile_image, bio')
-        .eq('user_id', user.id)
-        .single();
-
-      console.log('Profile data:', { profile, profileError });
-
-      if (profileError) {
-        console.error('Profile error:', profileError);
-        // Create basic profile if missing
-        const { error: createProfileError } = await supabase
+      // Load user profile with timeout
+      try {
+        const profilePromise = supabase
           .from('users')
-          .insert({
-            user_id: user.id,
-            first_name: 'Mentor',
-            last_name: 'User',
-            email: user.email || 'mentor@example.com', // Ensure email is set
-            profile_image: '',
-            bio: ''
-          });
-        
-        if (!createProfileError) {
-          setUserProfile({
-            user_id: user.id,
-            first_name: 'Mentor',
-            last_name: 'User',
-            email: user.email || 'mentor@example.com',
-            profile_image: '',
-            bio: ''
-          });
+          .select('user_id, first_name, last_name, email, profile_image, bio')
+          .eq('user_id', user.id)
+          .single();
+
+        const result = await Promise.race([
+          profilePromise,
+          new Promise<{ data: null; error: Error }>((_, reject) => 
+            setTimeout(() => reject(new Error('Profile query timeout')), 3000)
+          )
+        ]);
+
+        const { data: profile, error: profileError } = result;
+
+        console.log('Profile data:', { profile, profileError });
+
+        if (profileError) {
+          console.error('Profile error:', profileError);
+          // Create basic profile if missing
+          const { error: createProfileError } = await supabase
+            .from('users')
+            .insert({
+              user_id: user.id,
+              first_name: user.user_metadata?.first_name || 'Mentor',
+              last_name: user.user_metadata?.last_name || 'User',
+              email: user.email || 'mentor@example.com',
+              profile_image: '',
+              bio: ''
+            });
+          
+          if (!createProfileError) {
+            setUserProfile({
+              user_id: user.id,
+              first_name: user.user_metadata?.first_name || 'Mentor',
+              last_name: user.user_metadata?.last_name || 'User',
+              email: user.email || 'mentor@example.com',
+              profile_image: '',
+              bio: ''
+            });
+          }
+        } else {
+          setUserProfile(profile);
         }
-      } else {
-      setUserProfile(profile);
+      } catch (profileTimeoutError) {
+        console.error('Profile query timed out:', profileTimeoutError);
+        // Set default profile data
+        setUserProfile({
+          user_id: user.id,
+          first_name: user.user_metadata?.first_name || 'Mentor',
+          last_name: user.user_metadata?.last_name || 'User',
+          email: user.email || 'mentor@example.com',
+          profile_image: '',
+          bio: ''
+        });
       }
 
-      // Set basic stats
-      setStats({
-        totalSessions: 0,
-        totalEarnings: 0,
-        averageRating: 0,
-        responseRate: 0
-      });
+      // Load sessions with timeout
+      try {
+        await Promise.race([
+          loadSessions(),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Sessions query timeout')), 4000)
+          )
+        ]);
+      } catch (sessionsTimeoutError) {
+        console.error('Sessions query timed out:', sessionsTimeoutError);
+        // Set empty sessions array as fallback
+        setSessions([]);
+        setAcceptedSessions([]);
+      }
 
-      // Load requested sessions (simplified query)
-      await loadRequestedSessions();
-      await loadAcceptedSessions();
+      // Load accepted sessions with timeout
+      try {
+        await Promise.race([
+          loadAcceptedSessions(),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Accepted sessions query timeout')), 3000)
+          )
+        ]);
+      } catch (acceptedSessionsTimeoutError) {
+        console.error('Accepted sessions query timed out:', acceptedSessionsTimeoutError);
+        // Keep existing accepted sessions or set empty array
+        if (acceptedSessions.length === 0) {
+          setAcceptedSessions([]);
+        }
+      }
 
-    } catch (error: any) {
-      console.error('Error loading mentor data:', error);
+      setLoading(false);
+    } catch (error) {
+      console.error(`Error in loadUserData (attempt ${retryCount + 1}):`, error);
+      
+      // Retry logic
+      if (retryCount < maxRetries) {
+        console.log(`Retrying in 2 seconds... (${retryCount + 1}/${maxRetries})`);
+        setTimeout(() => {
+          loadUserData(retryCount + 1);
+        }, 2000);
+        return;
+      }
+      
+      // Final fallback after all retries
+      setLoading(false);
       toast({
-        title: "Error loading mentor dashboard",
-        description: error.message,
+        title: "Connection issue",
+        description: "Unable to load data. Please check your connection and refresh the page.",
         variant: "destructive"
       });
-    } finally {
-      setLoading(false);
     }
   };
 
-  const loadRequestedSessions = async () => {
+  const loadSessions = async () => {
     try {
-      console.log('Loading requested sessions...');
+      console.log('=== loadSessions called ===');
+      console.log('Loading requested sessions for mentor:', user?.id);
       
+      // Use a simpler query to avoid timeouts
       const { data: sessionsData, error: sessionsError } = await supabase
         .from('sessions')
         .select(`
-          session_id,
+          id,
           title,
           description,
           scheduled_start,
@@ -191,32 +252,38 @@ export default function MentorDashboard() {
           duration_minutes,
           final_price,
           status,
-          mentee_id,
-          mentees:mentee_id (
-            users:mentees_mentee_id_fkey (
-              first_name,
-              last_name,
-              email
-            )
-          )
+          mentor_id,
+          mentee_id
         `)
         .eq('mentor_id', user?.id)
         .eq('status', 'requested')
-        .order('scheduled_start', { ascending: false });
+        .order('scheduled_start', { ascending: false })
+        .limit(10); // Limit to prevent large queries
 
-      console.log('Sessions data:', { sessionsData, sessionsError });
+      console.log('Sessions query result:', { sessionsData, sessionsError });
 
       if (!sessionsError && sessionsData) {
         setSessions(sessionsData);
-        
-        // Create test sessions if none exist
-        if (sessionsData.length === 0) {
-          console.log('No sessions found, creating test data...');
-          await createTestSessionRequests();
-        }
+        console.log('Loaded requested sessions:', sessionsData.length);
+      } else if (sessionsError) {
+        console.error('Error loading requested sessions:', sessionsError);
+        // Don't show toast for session loading errors, just log them
+        setSessions([]);
+      } else {
+        setSessions([]);
       }
+
+      // Debug: Check all sessions for this mentor (simplified)
+      const { data: allSessions, error: allSessionsError } = await supabase
+        .from('sessions')
+        .select('id, mentor_id, mentee_id, status, title')
+        .eq('mentor_id', user?.id)
+        .limit(5); // Limit for debugging
+      
+      console.log('All sessions for mentor:', allSessions, 'Error:', allSessionsError);
     } catch (error) {
       console.error('Error loading sessions:', error);
+      setSessions([]);
     }
   };
 
@@ -227,7 +294,7 @@ export default function MentorDashboard() {
       const { data: acceptedData, error: acceptedError } = await supabase
         .from('sessions')
         .select(`
-          session_id,
+          id,
           title,
           description,
           scheduled_start,
@@ -239,15 +306,19 @@ export default function MentorDashboard() {
         `)
         .eq('mentor_id', user?.id)
         .eq('status', 'confirmed')
-        .order('scheduled_start', { ascending: false });
+        .order('scheduled_start', { ascending: false })
+        .limit(10); // Limit to prevent large queries
 
       console.log('Accepted sessions data:', { acceptedData, acceptedError });
 
       if (!acceptedError && acceptedData) {
         setAcceptedSessions(acceptedData);
+      } else {
+        setAcceptedSessions([]);
       }
     } catch (error) {
       console.error('Error loading accepted sessions:', error);
+      setAcceptedSessions([]);
     }
   };
 
@@ -259,7 +330,7 @@ export default function MentorDashboard() {
       const { error: updateError } = await supabase
         .from('sessions')
         .update({ status: 'confirmed' })
-        .eq('session_id', sessionId);
+        .eq('id', sessionId);
 
       if (updateError) {
         console.error('Error accepting session:', updateError);
@@ -272,7 +343,7 @@ export default function MentorDashboard() {
       }
 
       // Create notification for mentee
-      const session = sessions.find(s => s.session_id === sessionId);
+      const session = sessions.find(s => s.id === sessionId);
       if (session) {
         const { error: notificationError } = await supabase
           .from('notifications')
@@ -280,7 +351,7 @@ export default function MentorDashboard() {
             user_id: session.mentee_id,
             type: 'session_booked',
             title: 'Session Confirmed!',
-            content: `Your session "${session.title}" has been confirmed by your mentor.`,
+            message: `Your session "${session.title}" has been confirmed by your mentor.`,
             is_read: false
           });
 
@@ -322,7 +393,7 @@ export default function MentorDashboard() {
       }
 
       // Reload sessions
-      await loadRequestedSessions();
+      await loadSessions();
       await loadAcceptedSessions();
 
       toast({
@@ -349,7 +420,7 @@ export default function MentorDashboard() {
       const { error: updateError } = await supabase
         .from('sessions')
         .update({ status: 'cancelled' })
-        .eq('session_id', sessionId);
+        .eq('id', sessionId);
 
       if (updateError) {
         console.error('Error declining session:', updateError);
@@ -362,7 +433,7 @@ export default function MentorDashboard() {
       }
 
       // Create notification for mentee
-      const session = sessions.find(s => s.session_id === sessionId);
+      const session = sessions.find(s => s.id === sessionId);
       if (session) {
         const { error: notificationError } = await supabase
           .from('notifications')
@@ -370,7 +441,7 @@ export default function MentorDashboard() {
             user_id: session.mentee_id,
             type: 'system_update',
             title: 'Session Declined',
-            content: `Your session "${session.title}" was declined by the mentor.`,
+            message: `Your session "${session.title}" was declined by the mentor.`,
             is_read: false
           });
 
@@ -380,7 +451,7 @@ export default function MentorDashboard() {
       }
 
       // Reload sessions
-      await loadRequestedSessions();
+      await loadSessions();
 
       toast({
         title: "Session Declined",
@@ -433,7 +504,7 @@ export default function MentorDashboard() {
       // Create test session requests
       const testSessions = [
         {
-          session_id: 'test-session-1',
+          id: 'test-session-1',
           mentor_id: user?.id,
           mentee_id: 'test-mentee-1',
           title: 'React Development Help',
@@ -450,7 +521,7 @@ export default function MentorDashboard() {
           currency: 'USD'
         },
         {
-          session_id: 'test-session-2',
+          id: 'test-session-2',
           mentor_id: user?.id,
           mentee_id: 'test-mentee-2',
           title: 'JavaScript Fundamentals',
@@ -478,7 +549,7 @@ export default function MentorDashboard() {
         .select(`
           *,
           mentees:mentee_id (
-            users:mentee_id (
+            users:user_id (
               first_name,
               last_name,
               email,
@@ -507,11 +578,20 @@ export default function MentorDashboard() {
     setShowSessionDetails(true);
   };
 
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    if (tab === "requested") {
+      loadSessions();
+    } else if (tab === "sessions") {
+      loadAcceptedSessions();
+    }
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-sunshine-yellow mx-auto mb-4"></div>
           <p className="text-gray-600">Loading mentor dashboard...</p>
         </div>
       </div>
@@ -523,58 +603,75 @@ export default function MentorDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Modern Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="px-4">
-          <div className="flex items-center justify-between h-16">
+    <div className="min-h-screen bg-white">
+      {/* Header with Integrated Navigation */}
+      <header className="bg-white border-b border-gray-200">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between">
             {/* Left side - Logo and Navigation */}
-                          <div className="flex items-center space-x-8">
-                <Logo size="lg" variant="default" />
-              <Badge variant="secondary" className="bg-blue-100 text-blue-800 px-3 py-1">
-                Mentor Dashboard
+            <div className="flex items-center space-x-8">
+              <Logo size="lg" variant="gradient" />
+              <Badge variant="secondary" className="bg-brand-sunshine-yellow text-brand-charcoal px-3 py-1">
+                Mentor
               </Badge>
-              
-              {/* Navigation Tabs */}
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="ml-8">
-                <TabsList className="bg-gray-100 p-1 rounded-lg">
-                  <TabsTrigger value="overview" className="data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm rounded-md transition-all px-4 py-2">
-                    <TrendingUp className="h-4 w-4 mr-2" />
-                    Overview
-                  </TabsTrigger>
-                  <TabsTrigger value="sessions" className="data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm rounded-md transition-all px-4 py-2">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Sessions
-                  </TabsTrigger>
-                  <TabsTrigger value="requested" className="data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm rounded-md transition-all px-4 py-2">
-                    <Users className="h-4 w-4 mr-2" />
-                    Requests
-                  </TabsTrigger>
-                  <TabsTrigger value="seminars" className="data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm rounded-md transition-all px-4 py-2">
-                    <BookOpen className="h-4 w-4 mr-2" />
-                    Public Seminars
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
+            </div>
+            
+            {/* Center - Navigation Buttons */}
+            <div className="flex items-center space-x-1">
+              <Button 
+                variant={activeTab === "overview" ? "default" : "ghost"} 
+                size="sm" 
+                onClick={() => handleTabChange("overview")}
+                className={activeTab === "overview" ? "bg-brand-sunshine-yellow text-brand-charcoal" : "text-brand-dark-grey hover:text-brand-charcoal"}
+              >
+                Overview
+              </Button>
+              <Button 
+                variant={activeTab === "sessions" ? "default" : "ghost"} 
+                size="sm" 
+                onClick={() => handleTabChange("sessions")}
+                className={activeTab === "sessions" ? "bg-brand-sunshine-yellow text-brand-charcoal" : "text-brand-dark-grey hover:text-brand-charcoal"}
+              >
+                Sessions
+              </Button>
+              <Button 
+                variant={activeTab === "requested" ? "default" : "ghost"} 
+                size="sm" 
+                onClick={() => handleTabChange("requested")}
+                className={activeTab === "requested" ? "bg-brand-sunshine-yellow text-brand-charcoal" : "text-brand-dark-grey hover:text-brand-charcoal"}
+              >
+                Requests
+              </Button>
+              <Button 
+                variant={activeTab === "seminars" ? "default" : "ghost"} 
+                size="sm" 
+                onClick={() => handleTabChange("seminars")}
+                className={activeTab === "seminars" ? "bg-brand-sunshine-yellow text-brand-charcoal" : "text-brand-dark-grey hover:text-brand-charcoal"}
+              >
+                Public Seminars
+              </Button>
+              <Button 
+                variant={activeTab === "ideas" ? "default" : "ghost"} 
+                size="sm" 
+                onClick={() => handleTabChange("ideas")}
+                className={activeTab === "ideas" ? "bg-brand-sunshine-yellow text-brand-charcoal" : "text-brand-dark-grey hover:text-brand-charcoal"}
+              >
+                Business Ideas
+              </Button>
             </div>
             
             {/* Right side - User Info */}
             <div className="flex items-center space-x-4">
               <NotificationBell />
               {userProfile && (
-                <div className="flex items-center space-x-3 bg-gray-50 rounded-lg px-4 py-2">
-                  <Avatar className="h-8 w-8 border-2 border-white cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setShowProfileEdit(true)}>
-                    <AvatarImage src={userProfile.profile_image} />
-                    <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-sm">
-                      {userProfile.first_name[0]}{userProfile.last_name[0]}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="font-medium text-gray-900 text-sm">
-                    {userProfile.first_name} {userProfile.last_name}
-                  </span>
-                </div>
+                <Avatar className="h-8 w-8 cursor-pointer" onClick={() => setShowProfileEdit(true)}>
+                  <AvatarImage src={userProfile.profile_image} />
+                  <AvatarFallback className="bg-gray-200 text-gray-700">
+                    {userProfile.first_name[0]}{userProfile.last_name[0]}
+                  </AvatarFallback>
+                </Avatar>
               )}
-              <Button variant="outline" size="sm" onClick={handleSignOut} className="hover:bg-red-50 hover:text-red-600 hover:border-red-200">
+              <Button variant="ghost" size="sm" onClick={handleSignOut} className="text-brand-dark-grey hover:text-brand-charcoal">
                 <LogOut className="h-4 w-4 mr-2" />
                 Sign Out
               </Button>
@@ -583,74 +680,69 @@ export default function MentorDashboard() {
         </div>
       </header>
 
-      <div className="px-4 py-8">
+      <div className="px-6 py-8">
         {activeTab === "overview" && (
           <div className="space-y-8">
             {/* Welcome Section */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                    Welcome back, {userProfile?.first_name}! 👋
-                  </h1>
-                  <p className="text-gray-600 text-lg">
-                    Here's what's happening with your mentoring business today.
-                  </p>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                    Active Mentor
-                  </Badge>
-                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                    Available for Sessions
-                  </Badge>
-                </div>
+            {/* Welcome Section */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome back, {userProfile?.first_name}!</h1>
+                <p className="text-gray-600 text-base">Here's what's happening with your mentoring business today.</p>
+              </div>
+              <div className="text-right">
+                <div className="text-3xl font-bold text-gray-900">{stats.totalSessions}</div>
+                <div className="text-gray-600 text-sm">Total sessions</div>
               </div>
             </div>
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600">Total Sessions</CardTitle>
-                  <Calendar className="h-4 w-4 text-blue-600" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-gray-900">{stats.totalSessions}</div>
-                  <p className="text-xs text-gray-500 mt-1">Completed sessions</p>
+              <Card className="bg-white border border-brand-dark-grey shadow-sm">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-10 h-10 bg-brand-sunshine-yellow rounded-lg flex items-center justify-center">
+                      <Calendar className="h-5 w-5 text-brand-charcoal" />
+                    </div>
+                  </div>
+                  <div className="text-2xl font-bold text-brand-charcoal mb-1">{stats.totalSessions}</div>
+                  <p className="text-sm text-brand-dark-grey">Total sessions</p>
                 </CardContent>
               </Card>
               
-              <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600">Total Earnings</CardTitle>
-                  <DollarSign className="h-4 w-4 text-green-600" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-gray-900">${stats.totalEarnings}</div>
-                  <p className="text-xs text-gray-500 mt-1">Lifetime earnings</p>
+              <Card className="bg-white border border-brand-dark-grey shadow-sm">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-10 h-10 bg-brand-sunshine-yellow rounded-lg flex items-center justify-center">
+                      <DollarSign className="h-5 w-5 text-brand-charcoal" />
+                    </div>
+                  </div>
+                  <div className="text-2xl font-bold text-brand-charcoal mb-1">${stats.totalEarnings}</div>
+                  <p className="text-sm text-brand-dark-grey">Total earnings</p>
                 </CardContent>
               </Card>
               
-              <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600">Average Rating</CardTitle>
-                  <Star className="h-4 w-4 text-yellow-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-gray-900">{stats.averageRating.toFixed(1)}</div>
-                  <p className="text-xs text-gray-500 mt-1">Out of 5 stars</p>
+              <Card className="bg-white border border-brand-dark-grey shadow-sm">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-10 h-10 bg-brand-sunshine-yellow rounded-lg flex items-center justify-center">
+                      <Star className="h-5 w-5 text-brand-charcoal" />
+                    </div>
+                  </div>
+                  <div className="text-2xl font-bold text-brand-charcoal mb-1">{stats.averageRating.toFixed(1)}</div>
+                  <p className="text-sm text-brand-dark-grey">Average rating</p>
                 </CardContent>
               </Card>
               
-              <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600">Response Rate</CardTitle>
-                  <Users className="h-4 w-4 text-purple-600" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-gray-900">{stats.responseRate.toFixed(1)}%</div>
-                  <p className="text-xs text-gray-500 mt-1">Session requests</p>
+              <Card className="bg-white border border-brand-dark-grey shadow-sm">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-10 h-10 bg-brand-sunshine-yellow rounded-lg flex items-center justify-center">
+                      <Users className="h-5 w-5 text-brand-charcoal" />
+                    </div>
+                  </div>
+                  <div className="text-2xl font-bold text-brand-charcoal mb-1">{stats.responseRate.toFixed(1)}%</div>
+                  <p className="text-sm text-brand-dark-grey">Response rate</p>
                 </CardContent>
               </Card>
             </div>
@@ -662,7 +754,7 @@ export default function MentorDashboard() {
                   <CardTitle className="text-lg font-semibold text-gray-900">Quick Actions</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <Button className="w-full justify-start bg-purple-600 hover:bg-purple-700 text-white">
+                  <Button className="w-full justify-start bg-brand-charcoal hover:bg-gray-800 text-white">
                     <Calendar className="h-4 w-4 mr-2" />
                     Set Your Availability
                   </Button>
@@ -721,10 +813,27 @@ export default function MentorDashboard() {
                 <h2 className="text-2xl font-bold text-gray-900">Sessions</h2>
                 <p className="text-gray-600">Manage your upcoming and completed sessions</p>
               </div>
-                              <Button className="bg-purple-600 hover:bg-purple-700">
-                <Calendar className="h-4 w-4 mr-2" />
-                Schedule Session
-              </Button>
+              <div className="flex items-center space-x-3">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    console.log('Refreshing sessions...');
+                    loadAcceptedSessions();
+                    toast({
+                      title: "Refreshing sessions",
+                      description: "Loading latest session data...",
+                    });
+                  }}
+                  className="border-blue-200 text-blue-600 hover:bg-blue-50"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Refresh
+                </Button>
+                <Button className="bg-brand-charcoal hover:bg-gray-800">
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Schedule Session
+                </Button>
+              </div>
             </div>
 
             <Card className="bg-white border border-gray-200 shadow-sm">
@@ -753,7 +862,7 @@ export default function MentorDashboard() {
                   <div className="space-y-4">
                     {acceptedSessions.map((session: any) => (
                       <div 
-                        key={session.session_id} 
+                        key={session.id} 
                         className="flex items-center justify-between p-6 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-colors cursor-pointer"
                         onClick={() => handleSessionClick(session)}
                       >
@@ -799,6 +908,30 @@ export default function MentorDashboard() {
           </div>
         )}
 
+        {activeTab === "ideas" && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">Business Ideas Marketplace</h1>
+                <p className="text-gray-600 text-base">Discover and invest in innovative business ideas from mentees</p>
+              </div>
+            </div>
+            
+            <Tabs defaultValue="browse" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="browse">Browse Ideas</TabsTrigger>
+                <TabsTrigger value="contacts">My Contacts</TabsTrigger>
+              </TabsList>
+              <TabsContent value="browse" className="mt-6">
+                <IdeasList isMentee={false} />
+              </TabsContent>
+              <TabsContent value="contacts" className="mt-6">
+                <MentorIdeaContacts />
+              </TabsContent>
+            </Tabs>
+          </div>
+        )}
+
         {activeTab === "requested" && (
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
               <CardHeader>
@@ -820,7 +953,7 @@ export default function MentorDashboard() {
                 <div className="space-y-4">
                     {sessions.map((session: any) => (
                     <Card 
-                      key={session.session_id} 
+                      key={session.id} 
                       className="border border-gray-200 hover:border-green-300 transition-colors cursor-pointer"
                       onClick={() => handleSessionClick(session)}
                     >
@@ -869,7 +1002,7 @@ export default function MentorDashboard() {
                             <Button 
                               size="sm" 
                               className="bg-green-600 hover:bg-green-700"
-                              onClick={() => handleAcceptSession(session.session_id)}
+                              onClick={() => handleAcceptSession(session.id)}
                             >
                               Accept
                             </Button>
@@ -877,7 +1010,7 @@ export default function MentorDashboard() {
                               size="sm" 
                               variant="outline" 
                               className="border-red-200 text-red-600 hover:bg-red-50"
-                              onClick={() => handleDeclineSession(session.session_id)}
+                              onClick={() => handleDeclineSession(session.id)}
                             >
                               Decline
                             </Button>

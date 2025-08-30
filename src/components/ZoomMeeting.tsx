@@ -235,7 +235,7 @@ export const ZoomMeeting: React.FC<ZoomMeetingProps> = ({
           status: status,
           updated_at: new Date().toISOString()
         })
-        .eq('session_id', sessionId);
+        .eq('id', sessionId);
 
       if (error) throw error;
     } catch (error) {

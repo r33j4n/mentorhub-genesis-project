@@ -55,6 +55,12 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				brand: {
+					'sunshine-yellow': '#FFE600',
+					'marigold-yellow': '#FEC925',
+					'charcoal': '#161616',
+					'dark-grey': '#54585A'
 				}
 			},
 			borderRadius: {

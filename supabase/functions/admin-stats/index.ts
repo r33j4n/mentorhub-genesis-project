@@ -38,9 +38,9 @@ serve(async (req) => {
     // Check if user is admin
     const { data: adminRole } = await supabaseClient
       .from('user_roles')
-      .select('role_type')
+      .select('role')
       .eq('user_id', user.id)
-      .eq('role_type', 'admin')
+      .eq('role', 'admin')
       .maybeSingle()
 
     if (!adminRole) {
